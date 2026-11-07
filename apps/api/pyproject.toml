@@ -1,0 +1,21 @@
+[project]
+name = "api"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Canicedev", email = "canice.aba.dev@gmail.com" }
+]
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi==0.162.0",
+    "uvicorn[standard]",
+    "python-multipart",
+    "sqlalchemy==2.1.8",
+    "psycopg[binary]>=3.3.8",
+    "alembic==1.20.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.13.6,<0.14.0"]
+build-backend = "uv_build"

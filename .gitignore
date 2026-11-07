@@ -1,0 +1,21 @@
+# Python and uv
+__pycache__/
+*.py[cod]
+.venv/
+.python-version.local
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets and local configuration
+.env
+.env.*
+!.env.example
+
+# Local private uploads and generated documents
+.local-data/
+local-data/
+
+# Build outputs
+dist/
+build/
