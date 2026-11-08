@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import ProfileOnboarding from "@/app/profile-onboarding";
 
 type JobStatus = "new" | "saved" | "dismissed" | "applied";
 type JobSource = "linkedin" | "upwork" | "manual";
@@ -22,8 +23,9 @@ type Job = {
 
 type JobImportResponse = { job: Job; created: boolean };
 type Filter = "all" | JobStatus;
-type AuthState = "checking" | "signed_out" | "signed_in";
+type AuthState = "checking" | "signed_out" | "onboarding" | "signed_in";
 type SessionResponse = { email: string };
+type ProfileStatus = { status: "missing" | "draft" | "confirmed"; full_name?: string | null };
 
 const DASHBOARD_API = "/api/backend";
 
@@ -69,6 +71,7 @@ export default function Home() {
   const [ownerEmail, setOwnerEmail] = useState("");
   const [authError, setAuthError] = useState("");
   const [authSubmitting, setAuthSubmitting] = useState(false);
+  const [manageProfile, setManageProfile] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -122,6 +125,23 @@ export default function Home() {
         }
 
         const session = (await sessionResponse.json()) as SessionResponse;
+        const profileResponse = await fetch(`${DASHBOARD_API}/profile/status`, {
+          cache: "no-store",
+        });
+        if (profileResponse.status === 401) {
+          if (!cancelled) setAuthState("signed_out");
+          return;
+        }
+        if (!profileResponse.ok) throw new Error(await responseError(profileResponse));
+        const profileStatus = (await profileResponse.json()) as ProfileStatus;
+        if (profileStatus.status !== "confirmed") {
+          if (!cancelled) {
+            setOwnerEmail(session.email);
+            setAuthState("onboarding");
+          }
+          return;
+        }
+
         const jobsResponse = await fetch(`${DASHBOARD_API}/jobs?limit=200`, {
           cache: "no-store",
         });
@@ -176,8 +196,17 @@ export default function Home() {
       if (!response.ok) throw new Error(await responseError(response));
 
       setOwnerEmail(email);
-      setAuthState("signed_in");
-      await loadJobs();
+      const profileResponse = await fetch(`${DASHBOARD_API}/profile/status`, {
+        cache: "no-store",
+      });
+      if (!profileResponse.ok) throw new Error(await responseError(profileResponse));
+      const profileStatus = (await profileResponse.json()) as ProfileStatus;
+      if (profileStatus.status !== "confirmed") {
+        setAuthState("onboarding");
+      } else {
+        setAuthState("signed_in");
+        await loadJobs();
+      }
     } catch (error) {
       setAuthError(
         error instanceof Error ? error.message : "Could not sign in. Please try again.",
@@ -292,6 +321,17 @@ export default function Home() {
   }
 
   if (authState !== "signed_in") {
+    if (authState === "onboarding") {
+      return (
+        <ProfileOnboarding
+          onConfirmed={() => {
+            setAuthState("signed_in");
+            void loadJobs();
+          }}
+          onDeleted={() => setAuthState("onboarding")}
+        />
+      );
+    }
     return (
       <main className="auth-shell">
         <section className="auth-card" aria-labelledby="sign-in-title">
@@ -372,6 +412,10 @@ export default function Home() {
             <span className="nav-icon send-icon" aria-hidden="true" />
             Applications
           </a>
+          <button className="nav-item profile-nav-item" onClick={() => setManageProfile((value) => !value)}>
+            <span className="nav-icon profile-icon" aria-hidden="true" />
+            My profile
+          </button>
         </nav>
 
         <div className="sidebar-bottom">
@@ -414,6 +458,17 @@ export default function Home() {
         </header>
 
         <div className="content-wrap">
+          {manageProfile && (
+            <ProfileOnboarding
+              onClose={() => setManageProfile(false)}
+              onConfirmed={() => undefined}
+              onDeleted={() => {
+                setManageProfile(false);
+                setAuthState("onboarding");
+                setJobs([]);
+              }}
+            />
+          )}
           <section className="welcome-row">
             <div>
               <p className="eyebrow">YOUR CAREER, IN MOTION</p>

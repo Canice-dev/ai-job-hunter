@@ -45,7 +45,10 @@ async function proxyToBackend(request: Request, context: BackendRouteContext) {
   const upstreamContentType = upstream.headers.get("content-type");
   if (upstreamContentType) responseHeaders.set("content-type", upstreamContentType);
 
-  const response = new NextResponse(await upstream.arrayBuffer(), {
+  const responseBody = [204, 205, 304].includes(upstream.status)
+    ? null
+    : await upstream.arrayBuffer();
+  const response = new NextResponse(responseBody, {
     status: upstream.status,
     headers: responseHeaders,
   });
@@ -62,5 +65,13 @@ export async function POST(request: Request, context: BackendRouteContext) {
 }
 
 export async function PATCH(request: Request, context: BackendRouteContext) {
+  return proxyToBackend(request, context);
+}
+
+export async function PUT(request: Request, context: BackendRouteContext) {
+  return proxyToBackend(request, context);
+}
+
+export async function DELETE(request: Request, context: BackendRouteContext) {
   return proxyToBackend(request, context);
 }

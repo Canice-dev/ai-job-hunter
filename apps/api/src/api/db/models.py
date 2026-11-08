@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Index, String, Text, UniqueConstraint, Uuid, func
+from sqlalchemy import DateTime, ForeignKey, Index, JSON, String, Text, UniqueConstraint, Uuid, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -39,3 +39,32 @@ class Job(Base):
         server_default=func.now(),
         onupdate=func.now(),
     )
+
+
+class CVDocument(Base):
+    __tablename__ = "cv_documents"
+    __table_args__ = (Index("ix_cv_documents_created_at", "created_at"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    storage_key: Mapped[str] = mapped_column(String(80), nullable=False, unique=True)
+    file_format: Mapped[str] = mapped_column(String(10), nullable=False)
+    file_size: Mapped[int] = mapped_column(nullable=False)
+    extracted_text: Mapped[str] = mapped_column(Text, nullable=False)
+    profile_draft: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Profile(Base):
+    __tablename__ = "profiles"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    cv_document_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True),
+        ForeignKey("cv_documents.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    facts: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

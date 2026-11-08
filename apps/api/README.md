@@ -40,4 +40,20 @@ to choose an expiry between 1 and 168 hours.
 
 The import endpoint stores only information the user supplies; it does not fetch job URLs, scrape platforms, score listings, or generate application materials. Listings with the same source and normalized URL are deduplicated. Jobs without a URL can be imported as separate records.
 
+## CV onboarding
+
+Authenticated profile endpoints:
+
+- `GET /api/v1/profile/onboarding` — current original CV metadata and draft/confirmed facts
+- `GET /api/v1/profile/status` — whether the owner needs to upload, review, or has confirmed a profile
+- `POST /api/v1/profile/cv` — upload one PDF or DOCX (up to 10 MB) as multipart field `file`
+- `PUT /api/v1/profile/confirm` — save reviewed facts with the current `cv_document_id`
+- `DELETE /api/v1/profile/cv` — delete the source CV and the profile derived from it
+
+Local originals are stored outside the web app in `apps/api/.local-data/cvs` by default. Set
+`CV_STORAGE_DIR` to a private directory when deploying. The database stores extracted text,
+the editable draft, and file metadata; it does not store the uploaded file bytes. Only text-based
+PDFs and DOCX files are supported; scanned PDFs need OCR, which is not included yet. After
+updating the API, apply the new migration with `uv run --env-file .env alembic upgrade head`.
+
 Set `WEB_ORIGIN` to the deployed dashboard origin when running outside local development. It defaults to `http://localhost:3000`.

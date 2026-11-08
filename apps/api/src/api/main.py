@@ -9,6 +9,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from api.db.session import get_engine
 from api.routes.auth import router as auth_router
 from api.routes.jobs import router as jobs_router
+from api.routes.profile import router as profile_router
 
 app = FastAPI(
     title="Job Hunter API",
@@ -22,12 +23,13 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[web_origin],
     allow_credentials=False,
-    allow_methods=["GET", "POST", "PATCH"],
+    allow_methods=["GET", "POST", "PATCH", "PUT", "DELETE"],
     allow_headers=["Content-Type"],
 )
 
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(jobs_router, prefix="/api/v1")
+app.include_router(profile_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["operations"])
