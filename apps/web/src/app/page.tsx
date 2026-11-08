@@ -22,10 +22,10 @@ type Job = {
 
 type JobImportResponse = { job: Job; created: boolean };
 type Filter = "all" | JobStatus;
+type AuthState = "checking" | "signed_out" | "signed_in";
+type SessionResponse = { email: string };
 
-const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
-).replace(/\/$/, "");
+const DASHBOARD_API = "/api/backend";
 
 const statusLabels: Record<JobStatus, string> = {
   new: "New",
@@ -65,6 +65,10 @@ async function responseError(response: Response) {
 
 export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [authState, setAuthState] = useState<AuthState>("checking");
+  const [ownerEmail, setOwnerEmail] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authSubmitting, setAuthSubmitting] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
@@ -78,9 +82,14 @@ export default function Home() {
     setLoading(true);
     setPageError("");
     try {
-      const response = await fetch(`${API_URL}/api/v1/jobs?limit=200`, {
+      const response = await fetch(`${DASHBOARD_API}/jobs?limit=200`, {
         cache: "no-store",
       });
+      if (response.status === 401) {
+        setAuthState("signed_out");
+        setJobs([]);
+        return;
+      }
       if (!response.ok) throw new Error(await responseError(response));
       setJobs((await response.json()) as Job[]);
     } catch (error) {
@@ -99,34 +108,97 @@ export default function Home() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadInitialJobs() {
+    async function initializeDashboard() {
       try {
-        const response = await fetch(`${API_URL}/api/v1/jobs?limit=200`, {
+        const sessionResponse = await fetch("/api/auth/session", {
           cache: "no-store",
         });
-        if (!response.ok) throw new Error(await responseError(response));
-        const initialJobs = (await response.json()) as Job[];
-        if (!cancelled) setJobs(initialJobs);
+        if (sessionResponse.status === 401) {
+          if (!cancelled) setAuthState("signed_out");
+          return;
+        }
+        if (!sessionResponse.ok) {
+          throw new Error(await responseError(sessionResponse));
+        }
+
+        const session = (await sessionResponse.json()) as SessionResponse;
+        const jobsResponse = await fetch(`${DASHBOARD_API}/jobs?limit=200`, {
+          cache: "no-store",
+        });
+        if (jobsResponse.status === 401) {
+          if (!cancelled) setAuthState("signed_out");
+          return;
+        }
+        if (!jobsResponse.ok) throw new Error(await responseError(jobsResponse));
+
+        const initialJobs = (await jobsResponse.json()) as Job[];
+        if (!cancelled) {
+          setOwnerEmail(session.email);
+          setJobs(initialJobs);
+          setAuthState("signed_in");
+        }
       } catch (error) {
         if (!cancelled) {
-          setPageError(
+          setAuthError(
             error instanceof TypeError
               ? "Could not reach the API. Make sure the Python server is running, then refresh."
               : error instanceof Error
                 ? error.message
-                : "Could not load your jobs. Please try again.",
+                : "Could not check your sign-in session. Please try again.",
           );
+          setAuthState("signed_out");
         }
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
 
-    void loadInitialJobs();
+    void initializeDashboard();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  async function signIn(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setAuthSubmitting(true);
+    setAuthError("");
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") || "").trim();
+    const password = String(form.get("password") || "");
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+
+      setOwnerEmail(email);
+      setAuthState("signed_in");
+      await loadJobs();
+    } catch (error) {
+      setAuthError(
+        error instanceof Error ? error.message : "Could not sign in. Please try again.",
+      );
+    } finally {
+      setAuthSubmitting(false);
+    }
+  }
+
+  async function signOut() {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } finally {
+      setJobs([]);
+      setOwnerEmail("");
+      setPageError("");
+      setNotice("");
+      setFormOpen(false);
+      setAuthState("signed_out");
+    }
+  }
 
   const counts = useMemo(() => {
     const total = jobs.length;
@@ -166,7 +238,7 @@ export default function Home() {
     };
 
     try {
-      const response = await fetch(`${API_URL}/api/v1/jobs/import`, {
+      const response = await fetch(`${DASHBOARD_API}/jobs/import`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -199,7 +271,7 @@ export default function Home() {
     setUpdatingId(jobId);
     setPageError("");
     try {
-      const response = await fetch(`${API_URL}/api/v1/jobs/${jobId}/status`, {
+      const response = await fetch(`${DASHBOARD_API}/jobs/${jobId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
@@ -218,6 +290,53 @@ export default function Home() {
       setUpdatingId(null);
     }
   }
+
+  if (authState !== "signed_in") {
+    return (
+      <main className="auth-shell">
+        <section className="auth-card" aria-labelledby="sign-in-title">
+          <a className="auth-brand" href="#sign-in-title" aria-label="Job Hunter sign in">
+            <span className="brand-mark" aria-hidden="true"><span /></span>
+            <span>job<span className="brand-light">hunter</span></span>
+          </a>
+
+          {authState === "checking" ? (
+            <div className="auth-loading" role="status">
+              <span className="loading-ring" />
+              Checking your workspace…
+            </div>
+          ) : (
+            <>
+              <div className="auth-heading">
+                <p className="eyebrow">PRIVATE WORKSPACE</p>
+                <h1 id="sign-in-title">Welcome back</h1>
+                <p>Sign in to access your jobs, CV details, and application materials.</p>
+              </div>
+
+              <form className="auth-form" onSubmit={signIn}>
+                <label>
+                  Email address
+                  <input name="email" type="email" autoComplete="email" required placeholder="you@example.com" />
+                </label>
+                <label>
+                  Password
+                  <input name="password" type="password" autoComplete="current-password" required />
+                </label>
+                {authError && <p className="auth-error" role="alert">{authError}</p>}
+                <button className="primary-button auth-submit" type="submit" disabled={authSubmitting}>
+                  {authSubmitting ? <><span className="button-spinner" />Signing in…</> : "Sign in"}
+                </button>
+              </form>
+
+              <p className="auth-note">This personal workspace has one configured owner account.</p>
+            </>
+          )}
+        </section>
+      </main>
+    );
+  }
+
+  const ownerInitial = ownerEmail.slice(0, 1).toUpperCase() || "O";
 
   return (
     <main className="app-shell">
@@ -266,14 +385,12 @@ export default function Home() {
             </div>
           </div>
           <div className="profile-row">
-            <div className="avatar">C</div>
+            <div className="avatar">{ownerInitial}</div>
             <div className="profile-copy">
-              <strong>My workspace</strong>
+              <strong>{ownerEmail}</strong>
               <span>Personal account</span>
             </div>
-            <span className="profile-menu" aria-hidden="true">
-              ···
-            </span>
+            <button className="sign-out-button" onClick={() => void signOut()}>Sign out</button>
           </div>
         </div>
       </aside>
@@ -290,8 +407,8 @@ export default function Home() {
               <span />
               API connected
             </span>
-            <button className="top-avatar" aria-label="Personal account">
-              C
+            <button className="top-avatar" onClick={() => void signOut()} aria-label="Sign out">
+              {ownerInitial}
             </button>
           </div>
         </header>

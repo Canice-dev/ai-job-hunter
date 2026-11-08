@@ -13,9 +13,14 @@ from api.schemas.jobs import (
     JobRecordResponse,
     JobStatusRequest,
 )
+from api.security import require_owner
 from api.services.job_import import build_job, normalize_source_url
 
-router = APIRouter(prefix="/jobs", tags=["jobs"])
+router = APIRouter(
+    prefix="/jobs",
+    tags=["jobs"],
+    dependencies=[Depends(require_owner)],
+)
 
 
 @router.post("/preview", response_model=JobPreviewResponse)

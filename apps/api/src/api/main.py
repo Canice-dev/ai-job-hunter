@@ -7,6 +7,7 @@ from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 
 from api.db.session import get_engine
+from api.routes.auth import router as auth_router
 from api.routes.jobs import router as jobs_router
 
 app = FastAPI(
@@ -25,6 +26,7 @@ app.add_middleware(
     allow_headers=["Content-Type"],
 )
 
+app.include_router(auth_router, prefix="/api/v1")
 app.include_router(jobs_router, prefix="/api/v1")
 
 

@@ -61,4 +61,4 @@ class JobImportResponse(BaseModel):
 
 
 class JobStatusRequest(BaseModel):
-    status: Literal["saved", "dismissed", "applied"]
+    status: Literal["new", "saved", "dismissed", "applied"]
