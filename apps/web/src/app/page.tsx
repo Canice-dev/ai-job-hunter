@@ -1,69 +1,657 @@
-import Image from "next/image";
+"use client";
+
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+
+type JobStatus = "new" | "saved" | "dismissed" | "applied";
+type JobSource = "linkedin" | "upwork" | "manual";
+type WorkMode = "on_site" | "remote" | "hybrid" | "unknown";
+
+type Job = {
+  id: string;
+  source: JobSource;
+  source_url: string | null;
+  title: string | null;
+  company: string | null;
+  location: string | null;
+  work_mode: WorkMode;
+  description: string;
+  status: JobStatus;
+  created_at: string;
+  updated_at: string;
+};
+
+type JobImportResponse = { job: Job; created: boolean };
+type Filter = "all" | JobStatus;
+
+const API_URL = (
+  process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000"
+).replace(/\/$/, "");
+
+const statusLabels: Record<JobStatus, string> = {
+  new: "New",
+  saved: "Saved",
+  dismissed: "Dismissed",
+  applied: "Applied",
+};
+
+function humanize(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function dateLabel(value: string) {
+  return new Intl.DateTimeFormat("en-NG", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
+async function responseError(response: Response) {
+  try {
+    const body = await response.json();
+    if (typeof body.detail === "string") return body.detail;
+    if (Array.isArray(body.detail))
+      return body.detail
+        .map((item: { msg?: string }) => item.msg)
+        .filter(Boolean)
+        .join(" ");
+  } catch {
+    // The server may return an empty or non-JSON error response.
+  }
+  return `The API returned ${response.status}. Please try again.`;
+}
 
 export default function Home() {
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [pageError, setPageError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+
+  const loadJobs = useCallback(async () => {
+    setLoading(true);
+    setPageError("");
+    try {
+      const response = await fetch(`${API_URL}/api/v1/jobs?limit=200`, {
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      setJobs((await response.json()) as Job[]);
+    } catch (error) {
+      setPageError(
+        error instanceof TypeError
+          ? "Could not reach the API. Make sure the Python server is running, then refresh."
+          : error instanceof Error
+            ? error.message
+            : "Could not load your jobs. Please try again.",
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadInitialJobs() {
+      try {
+        const response = await fetch(`${API_URL}/api/v1/jobs?limit=200`, {
+          cache: "no-store",
+        });
+        if (!response.ok) throw new Error(await responseError(response));
+        const initialJobs = (await response.json()) as Job[];
+        if (!cancelled) setJobs(initialJobs);
+      } catch (error) {
+        if (!cancelled) {
+          setPageError(
+            error instanceof TypeError
+              ? "Could not reach the API. Make sure the Python server is running, then refresh."
+              : error instanceof Error
+                ? error.message
+                : "Could not load your jobs. Please try again.",
+          );
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    void loadInitialJobs();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const counts = useMemo(() => {
+    const total = jobs.length;
+    const saved = jobs.filter((job) => job.status === "saved").length;
+    const applied = jobs.filter((job) => job.status === "applied").length;
+    const active = jobs.filter((job) => job.status !== "dismissed").length;
+    return { total, saved, applied, active };
+  }, [jobs]);
+
+  const visibleJobs = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    return jobs.filter((job) => {
+      const matchesFilter = filter === "all" || job.status === filter;
+      const matchesSearch =
+        !query ||
+        [job.title, job.company, job.location, job.description, job.source]
+          .filter(Boolean)
+          .some((value) => value!.toLowerCase().includes(query));
+      return matchesFilter && matchesSearch;
+    });
+  }, [filter, jobs, search]);
+
+  async function importJob(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSubmitting(true);
+    setPageError("");
+    setNotice("");
+    const form = new FormData(event.currentTarget);
+    const payload = {
+      source: form.get("source"),
+      source_url: (form.get("source_url") as string).trim() || null,
+      title: (form.get("title") as string).trim() || null,
+      company: (form.get("company") as string).trim() || null,
+      location: (form.get("location") as string).trim() || null,
+      work_mode: form.get("work_mode"),
+      description: (form.get("description") as string).trim(),
+    };
+
+    try {
+      const response = await fetch(`${API_URL}/api/v1/jobs/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      const result = (await response.json()) as JobImportResponse;
+      setJobs((current) => [
+        result.job,
+        ...current.filter((job) => job.id !== result.job.id),
+      ]);
+      setNotice(
+        result.created
+          ? "Job added to your list."
+          : "This job was already in your list. Showing the existing entry.",
+      );
+      setFormOpen(false);
+      event.currentTarget.reset();
+    } catch (error) {
+      setPageError(
+        error instanceof Error
+          ? error.message
+          : "Could not import the job. Please try again.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function updateStatus(jobId: string, status: JobStatus) {
+    setUpdatingId(jobId);
+    setPageError("");
+    try {
+      const response = await fetch(`${API_URL}/api/v1/jobs/${jobId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      const updated = (await response.json()) as Job;
+      setJobs((current) =>
+        current.map((job) => (job.id === jobId ? updated : job)),
+      );
+      setNotice(`Job marked ${statusLabels[status].toLowerCase()}.`);
+    } catch (error) {
+      setPageError(
+        error instanceof Error ? error.message : "Could not update this job.",
+      );
+    } finally {
+      setUpdatingId(null);
+    }
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
+    <main className="app-shell">
+      <aside className="sidebar">
+        <a className="brand" href="#top" aria-label="Job Hunter home">
+          <span className="brand-mark" aria-hidden="true">
+            <span />
+          </span>
+          <span>
+            job<span className="brand-light">hunter</span>
+          </span>
+        </a>
+
+        <div className="sidebar-label">Workspace</div>
+        <nav className="side-nav" aria-label="Main navigation">
+          <a className="nav-item active" href="#jobs">
+            <span className="nav-icon grid-icon" aria-hidden="true" />
+            Overview
           </a>
           <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+            className="nav-item"
+            href="#jobs"
+            onClick={() => setFilter("saved")}
           >
-            Documentation
+            <span className="nav-icon bookmark-icon" aria-hidden="true" />
+            Saved jobs
           </a>
+          <a
+            className="nav-item"
+            href="#jobs"
+            onClick={() => setFilter("applied")}
+          >
+            <span className="nav-icon send-icon" aria-hidden="true" />
+            Applications
+          </a>
+        </nav>
+
+        <div className="sidebar-bottom">
+          <div className="assistant-card">
+            <span className="assistant-spark" aria-hidden="true">
+              ✳
+            </span>
+            <div>
+              <strong>Your job search, in one place.</strong>
+              <p>Save roles here to keep your search organized.</p>
+            </div>
+          </div>
+          <div className="profile-row">
+            <div className="avatar">C</div>
+            <div className="profile-copy">
+              <strong>My workspace</strong>
+              <span>Personal account</span>
+            </div>
+            <span className="profile-menu" aria-hidden="true">
+              ···
+            </span>
+          </div>
         </div>
-      </main>
-    </div>
+      </aside>
+
+      <section className="main-panel" id="top">
+        <header className="topbar">
+          <div className="breadcrumb">
+            <span>Workspace</span>
+            <span className="crumb-divider">/</span>
+            <strong>Overview</strong>
+          </div>
+          <div className="topbar-right">
+            <span className="connection">
+              <span />
+              API connected
+            </span>
+            <button className="top-avatar" aria-label="Personal account">
+              C
+            </button>
+          </div>
+        </header>
+
+        <div className="content-wrap">
+          <section className="welcome-row">
+            <div>
+              <p className="eyebrow">YOUR CAREER, IN MOTION</p>
+              <h1>Job search overview</h1>
+              <p className="welcome-subtitle">
+                A clear view of the opportunities you’re tracking.
+              </p>
+            </div>
+            <button
+              className="primary-button"
+              onClick={() => {
+                setFormOpen((open) => !open);
+                setNotice("");
+              }}
+            >
+              <span className="plus-icon" aria-hidden="true">
+                +
+              </span>
+              {formOpen ? "Close form" : "Add a job"}
+            </button>
+          </section>
+
+          <section className="stats-grid" aria-label="Job search summary">
+            <article className="stat-card stat-total">
+              <div className="stat-top">
+                <span>Total tracked</span>
+                <span className="stat-icon total-icon" aria-hidden="true">
+                  ↗
+                </span>
+              </div>
+              <strong>{counts.total}</strong>
+              <small>Roles in your workspace</small>
+            </article>
+            <article className="stat-card">
+              <div className="stat-top">
+                <span>Active roles</span>
+                <span className="stat-icon active-icon" aria-hidden="true">
+                  ◌
+                </span>
+              </div>
+              <strong>{counts.active}</strong>
+              <small>Not dismissed</small>
+            </article>
+            <article className="stat-card">
+              <div className="stat-top">
+                <span>Saved</span>
+                <span className="stat-icon saved-icon" aria-hidden="true">
+                  ♡
+                </span>
+              </div>
+              <strong>{counts.saved}</strong>
+              <small>Worth a closer look</small>
+            </article>
+            <article className="stat-card">
+              <div className="stat-top">
+                <span>Applied</span>
+                <span className="stat-icon applied-icon" aria-hidden="true">
+                  ↗
+                </span>
+              </div>
+              <strong>{counts.applied}</strong>
+              <small>Applications you’ve sent</small>
+            </article>
+          </section>
+
+          {formOpen && (
+            <section className="form-panel" aria-labelledby="form-title">
+              <div className="form-heading">
+                <div>
+                  <p className="eyebrow">MANUAL IMPORT</p>
+                  <h2 id="form-title">Add a job to your list</h2>
+                  <p>
+                    Paste the details you want to keep. We won’t fetch or submit
+                    anything.
+                  </p>
+                </div>
+                <button
+                  className="icon-button close-button"
+                  onClick={() => setFormOpen(false)}
+                  aria-label="Close form"
+                >
+                  ×
+                </button>
+              </div>
+              <form className="job-form" onSubmit={importJob}>
+                <label>
+                  Job title
+                  <input
+                    name="title"
+                    placeholder="e.g. Backend Engineer"
+                    maxLength={300}
+                  />
+                </label>
+                <label>
+                  Company
+                  <input
+                    name="company"
+                    placeholder="e.g. Acme Inc."
+                    maxLength={300}
+                  />
+                </label>
+                <label>
+                  Source
+                  <select name="source" defaultValue="manual">
+                    <option value="manual">Manual</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="upwork">Upwork</option>
+                  </select>
+                </label>
+                <label>
+                  Work mode
+                  <select name="work_mode" defaultValue="unknown">
+                    <option value="unknown">Not specified</option>
+                    <option value="remote">Remote</option>
+                    <option value="on_site">On-site</option>
+                    <option value="hybrid">Hybrid</option>
+                  </select>
+                </label>
+                <label>
+                  Location
+                  <input
+                    name="location"
+                    placeholder="e.g. Lagos or Remote"
+                    maxLength={300}
+                  />
+                </label>
+                <label>
+                  Job listing URL
+                  <input
+                    name="source_url"
+                    type="url"
+                    placeholder="https://..."
+                  />
+                </label>
+                <label className="description-field">
+                  Job description
+                  <textarea
+                    name="description"
+                    placeholder="Paste the job description here…"
+                    required
+                    maxLength={50000}
+                    rows={5}
+                  />
+                </label>
+                <div className="form-actions">
+                  <span>Required: job description</span>
+                  <button
+                    className="primary-button"
+                    type="submit"
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <>
+                        <span className="button-spinner" />
+                        Adding…
+                      </>
+                    ) : (
+                      "Add job"
+                    )}
+                  </button>
+                </div>
+              </form>
+            </section>
+          )}
+
+          {pageError && (
+            <div className="message-banner error-banner" role="alert">
+              <span className="message-symbol">!</span>
+              <span>{pageError}</span>
+              <button onClick={() => void loadJobs()}>Retry</button>
+            </div>
+          )}
+          {notice && !pageError && (
+            <div className="message-banner success-banner" role="status">
+              <span className="message-symbol">✓</span>
+              <span>{notice}</span>
+              <button onClick={() => setNotice("")} aria-label="Dismiss notice">
+                ×
+              </button>
+            </div>
+          )}
+
+          <section className="jobs-section" id="jobs">
+            <div className="jobs-heading">
+              <div>
+                <h2>Your opportunities</h2>
+                <p>Keep every role and next step in view.</p>
+              </div>
+              <button
+                className="refresh-button"
+                onClick={() => void loadJobs()}
+                disabled={loading}
+              >
+                <span
+                  className={
+                    loading ? "refresh-glyph is-loading" : "refresh-glyph"
+                  }
+                  aria-hidden="true"
+                >
+                  ↻
+                </span>
+                Refresh
+              </button>
+            </div>
+
+            <div className="jobs-toolbar">
+              <div
+                className="filter-tabs"
+                role="tablist"
+                aria-label="Filter jobs"
+              >
+                {(
+                  ["all", "new", "saved", "applied", "dismissed"] as Filter[]
+                ).map((item) => (
+                  <button
+                    key={item}
+                    role="tab"
+                    aria-selected={filter === item}
+                    className={
+                      filter === item ? "filter-tab selected" : "filter-tab"
+                    }
+                    onClick={() => setFilter(item)}
+                  >
+                    {item === "all" ? "All jobs" : statusLabels[item]}
+                  </button>
+                ))}
+              </div>
+              <label className="search-box">
+                <span className="search-icon" aria-hidden="true" />
+                <span className="sr-only">Search jobs</span>
+                <input
+                  value={search}
+                  onChange={(event) => setSearch(event.target.value)}
+                  placeholder="Search jobs"
+                />
+              </label>
+            </div>
+
+            <div className="jobs-list">
+              {loading ? (
+                <div className="list-message">
+                  <span className="loading-ring" />
+                  Loading your jobs…
+                </div>
+              ) : visibleJobs.length === 0 ? (
+                <div className="empty-state">
+                  <div className="empty-illustration">
+                    <span className="empty-sheet" />
+                    <span className="empty-spark">✳</span>
+                  </div>
+                  <h3>
+                    {jobs.length === 0
+                      ? "Your next opportunity starts here"
+                      : "No jobs match this view"}
+                  </h3>
+                  <p>
+                    {jobs.length === 0
+                      ? "Add a listing you found and keep its details and application status together."
+                      : "Try another status filter or search term."}
+                  </p>
+                  {jobs.length === 0 && (
+                    <button
+                      className="secondary-button"
+                      onClick={() => setFormOpen(true)}
+                    >
+                      Add your first job <span>↗</span>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                visibleJobs.map((job) => (
+                  <article className="job-card" key={job.id}>
+                    <div className="company-mark" aria-hidden="true">
+                      {(job.company || job.source).slice(0, 1).toUpperCase()}
+                    </div>
+                    <div className="job-main">
+                      <div className="job-title-row">
+                        <h3>{job.title || "Untitled role"}</h3>
+                        {job.source_url && (
+                          <a
+                            className="external-link"
+                            href={job.source_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label="Open original listing"
+                          >
+                            ↗
+                          </a>
+                        )}
+                      </div>
+                      <div className="company-line">
+                        <span>{job.company || "Company not specified"}</span>
+                        <span className="meta-dot">·</span>
+                        <span>{job.location || "Location not specified"}</span>
+                      </div>
+                      <div className="job-tags">
+                        <span className={`status-pill status-${job.status}`}>
+                          {statusLabels[job.status]}
+                        </span>
+                        <span className="source-tag">
+                          {humanize(job.source)}
+                        </span>
+                        <span className="work-tag">
+                          {humanize(job.work_mode)}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="job-side">
+                      <span className="job-date">
+                        Added {dateLabel(job.created_at)}
+                      </span>
+                      <label className="status-control">
+                        <span className="sr-only">Update job status</span>
+                        <select
+                          value={job.status}
+                          disabled={updatingId === job.id}
+                          onChange={(event) =>
+                            void updateStatus(
+                              job.id,
+                              event.target.value as JobStatus,
+                            )
+                          }
+                        >
+                          <option value="new">New</option>
+                          <option value="saved">Saved</option>
+                          <option value="applied">Applied</option>
+                          <option value="dismissed">Dismissed</option>
+                        </select>
+                      </label>
+                    </div>
+                    <details className="job-description">
+                      <summary>View description</summary>
+                      <p>{job.description}</p>
+                    </details>
+                  </article>
+                ))
+              )}
+            </div>
+            {!loading && visibleJobs.length > 0 && (
+              <div className="list-footer">
+                Showing {visibleJobs.length} of {jobs.length} tracked{" "}
+                {jobs.length === 1 ? "role" : "roles"}
+                <span>Synced with your database</span>
+              </div>
+            )}
+          </section>
+          <footer className="page-footer">
+            <span>Made for a more focused job search.</span>
+            <span>
+              Job Hunter <span className="footer-dot">·</span> Personal
+              workspace
+            </span>
+          </footer>
+        </div>
+      </section>
+    </main>
   );
 }
