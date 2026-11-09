@@ -60,14 +60,14 @@ Finding relevant roles across job platforms takes repeated searching and manual 
 
 1. The owner runs `/site` or `/remote` from the dashboard or Telegram.
 2. The system searches through permitted source access and records a search run.
-3. The reader filters for technology roles and scores each candidate from 1 to 5.
-4. Scores below 4 are omitted from match results.
-5. Scores of 4 or higher appear with a short rationale, fit gaps, source link, and an uncertainty warning when needed.
+3. The reader filters for technology roles and scores each candidate from 1.0 to 5.0 in tenths.
+4. Each job receives a match rating from 1.0 to 5.0 in tenths.
+5. Every scored job appears with its rating, short rationale, fit gaps, source link, and an uncertainty warning when needed.
 6. If a source cannot be searched, the owner can paste a job URL or description for evaluation.
 
 ### Prepare and apply
 
-1. The owner opens a qualifying job and reviews its description and fit explanation.
+1. The owner opens a scored job and reviews its description and fit explanation.
 2. The CV Adapter prepares a separate tailored CV and cover letter in PDF and DOCX.
 3. The owner previews and downloads the documents, then chooses saved, dismissed, or applied status.
 4. The owner follows the source link and submits the application or proposal personally.
@@ -75,8 +75,8 @@ Finding relevant roles across job platforms takes repeated searching and manual 
 ### Errors and partial results
 
 - A search run displays progress and its final status, including partial completion.
-- Uncertain scoring or failed tailoring leaves the qualifying job visible with a warning. A failed document is marked unavailable, never represented as complete.
-- Jobs below 4 remain hidden even if the reader is uncertain.
+- Uncertain scoring or failed tailoring leaves the job visible with a warning. A failed document is marked unavailable, never represented as complete.
+- Jobs remain visible at every score, including ratings below 4.
 - Empty searches show a useful empty state; source errors explain that results may be incomplete and preserve the ability to import a job manually.
 
 ## Functional requirements
@@ -104,8 +104,8 @@ Finding relevant roles across job platforms takes repeated searching and manual 
 - Search integrations must use explicitly permitted access. No scraping, credential/session reuse, or access-control circumvention.
 - Store the source, source URL, location, description, posting metadata when available, and ingestion timestamp.
 - Avoid duplicate jobs based on platform ID or normalized source URL.
-- Score technology relevance and personal fit on a 1–5 scale and explain the score in plain language.
-- Display only scores >=4. Display uncertainty and processing warnings for these visible jobs.
+- Score technology relevance and personal fit on a 1.0–5.0 scale in tenths and explain the score in plain language.
+- Display every score, including scores below 4, with uncertainty and processing warnings when applicable.
 
 ### Review and status tracking
 

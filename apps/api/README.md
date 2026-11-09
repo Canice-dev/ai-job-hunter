@@ -45,7 +45,7 @@ The import endpoint stores only information the user supplies; it does not fetch
 
 ## AI job matching
 
-Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/app/apikey) and put it in `AI_API_KEY` in `apps/api/.env`. The defaults use Gemini's OpenAI-compatible chat API and `gemini-3.8-flash`; `AI_BASE_URL`, `AI_MODEL`, and `AI_API_KEY` can be changed to switch providers. The score button appears on each job card after a profile is confirmed. Applying the migration adds cached assessment fields to existing job records. The scoring request sends the candidate's skills, summary, experience, and education plus the job details, but not direct identifiers or the raw CV. Google's unpaid Gemini API terms permit submitted content to be used to improve products and reviewed, and say not to submit personal information. Use synthetic profile data for free-tier testing; do not send a real candidate profile unless you have reviewed the terms and chosen an appropriate paid/privacy arrangement.
+Configure `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL` in `apps/api/.env` for an OpenAI-compatible chat-completions provider. For NVIDIA Build, use `https://integrate.api.nvidia.com/v1` as the base URL and a model ID such as `nvidia/nemotron-3.5-lightning-30b-a3b`. The score button appears on each job card after a profile is confirmed. Match ratings use a 1.0–5.0 scale in tenths, and every scored job remains visible, including ratings below 4. The scoring request sends candidate skills, summary, experience, and education plus the job details, but not direct identifiers or the raw CV. Review the selected provider's data-retention terms before sending real profile information; use synthetic profile data while evaluating a provider.
 
 ## Telegram bot
 

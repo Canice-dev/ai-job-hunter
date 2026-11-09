@@ -54,7 +54,7 @@ class JobRecordResponse(BaseModel):
     applied_date: date | None = None
     notes: str | None = None
     follow_up_date: date | None = None
-    match_score: int | None = None
+    match_score: float | None = Field(default=None, ge=1.0, le=5.0)
     match_summary: str | None = None
     match_strengths: list[str] = Field(default_factory=list)
     match_gaps: list[str] = Field(default_factory=list)

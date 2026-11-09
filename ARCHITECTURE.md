@@ -143,7 +143,7 @@ Important constraints:
 
 - Every record is scoped to the single owner; authorization is enforced in the API even though v1 has one account.
 - Deduplicate a job on `(source, external_job_id)` when available; otherwise use a normalized `(source, source_url)` key.
-- A `Match` score is an integer 1–5. Only scores >=4 are returned in the visible match list.
+- A `Match` score is a floating-point rating from 1.0 to 5.0, rounded to one decimal place. All scored jobs are returned and shown, including scores below 4.
 - Job status is shared between the dashboard and Telegram.
 - Generated files reference both the original CV and job so they can be deleted or regenerated without changing the source.
 - Store stage state, timestamps, attempt count, and failure/warning codes for each search/material operation.
@@ -153,12 +153,12 @@ Important constraints:
 1. Create a `SearchRun` with command, location/mode, and source attempts.
 2. Scout queries only approved source interfaces. If unavailable, report source failure and allow URL/description import.
 3. Normalize and deduplicate returned/imported jobs.
-4. Job Reader determines tech relevance, score, rationale, and uncertainty. Hide scores <4.
+4. Job Reader determines tech relevance, score, rationale, and uncertainty. Show every scored job and its rating.
 5. CV Adapter prepares per-job CV and cover letter from confirmed facts. Keep generated statements traceable to profile/source facts.
 6. Store files privately and link them to the job/application package.
 7. Present the result and warning state in web and Telegram. User opens the platform and submits manually.
 
-If the reader is uncertain but produces a score of 4 or 5, show the job with a warning. If tailoring fails, show a qualifying job with a warning and no fabricated or partial document presented as complete. If the score is below 4, hide it even when uncertainty exists. Search stage failures should not erase successful results from other sources.
+If the reader is uncertain, show the job with a warning at any score. If tailoring fails, show the job with a warning and no fabricated or partial document presented as complete. Search stage failures should not erase successful results from other sources.
 
 ## API and integration contracts
 
@@ -198,4 +198,4 @@ Current platform references: [LinkedIn prohibited software guidance](https://www
 4. Approved LinkedIn and Upwork source coverage and rate limits.
 5. Account provisioning and Telegram one-time linking implementation.
 6. CV parsing/conversion tools and measurable layout-preservation acceptance threshold.
-7. Scoring rubric weights and minimum evidence required for a score of 4.
+7. Scoring rubric weights and calibration across the 1.0–5.0 rating scale.

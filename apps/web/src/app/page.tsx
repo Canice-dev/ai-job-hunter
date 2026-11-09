@@ -1155,7 +1155,7 @@ export default function Home() {
                           {statusLabels[job.status]}
                         </span>
                         {job.match_score !== null && (
-                          <span className="match-score">{job.match_score}% AI match</span>
+                          <span className="match-score">{job.match_score.toFixed(1)}/5 AI match</span>
                         )}
                         <button
                           className="score-button"

@@ -13,7 +13,7 @@ Build a personal job-hunting assistant with a Next.js dashboard and Telegram bot
 - `/remote` covers jobs open to applicants based in Nigeria.
 - LinkedIn and Upwork are priority sources, accessed only through permitted means. Do not scrape either site. Request an approved Upwork API key; use manual job import when permitted programmatic access is unavailable.
 - An orchestrator runs three separate stages: Scout, Job Reader, and CV Adapter.
-- Hide scores below 4/5. Show qualifying results with a warning if scoring or tailoring is uncertain.
+- Score job fit from 1.0 to 5.0 in tenths. Show every scored job, including scores below 4, and include a warning if scoring or tailoring is uncertain.
 - Accept and produce PDF and DOCX. Preserve the uploaded layout as closely as practical.
 - Keep the original CV unchanged. Tailored CVs and cover letters may reorder sections and rewrite wording using only confirmed facts; never add experience, skills, employers, or dates.
 - Show the job link and prepared materials. The user submits applications on LinkedIn or Upwork.
@@ -62,17 +62,17 @@ Build a personal job-hunting assistant with a Next.js dashboard and Telegram bot
 
 ### 4. Scoring, filtering, and application materials
 
-- Implement the technology-role filter and a transparent 1–5 match score with concise reasons and gaps.
-- Hide scores below 4; preserve uncertainty warnings for qualifying jobs.
+- Implement the technology-role filter and a transparent 1.0–5.0 match score in tenths, with concise reasons and gaps.
+- Show all scored jobs regardless of rating; preserve uncertainty warnings.
 - Tailor a separate CV and cover letter using only confirmed profile facts and the job description.
 - Produce DOCX and PDF outputs; retain the original CV and preserve its layout where feasible.
 - On parsing or generation failure, retain the job with a warning and clearly indicate which material is unavailable.
 
-**Exit criteria:** a qualifying job has a score explanation, warning state when applicable, truthful reviewable documents, and no automatic application submission.
+**Exit criteria:** every scored job has a score explanation, warning state when applicable, truthful reviewable documents, and no automatic application submission.
 
 ### 5. Dashboard and Telegram review
 
-- Build dashboard views for search runs, qualifying matches, job details, match reasons, warnings, and document preview/download.
+- Build dashboard views for search runs, all scored jobs, job details, match reasons, warnings, and document preview/download.
 - Add save, dismiss, and applied status actions and prevent the same source job from repeatedly appearing as new.
 - Link Telegram securely to the owner account.
 - Support search commands, manual job import, match review, status actions, and links/files in the bot.
@@ -94,7 +94,7 @@ Build a personal job-hunting assistant with a Next.js dashboard and Telegram bot
 - Only the owner can access the dashboard and stored CVs.
 - No automated scraping or application submission occurs.
 - `/site` and `/remote` use the agreed Nigerian locations and eligibility.
-- Scores below 4 are hidden; uncertain qualifying results remain visible with warnings.
+- Every scored job remains visible with its 1.0–5.0 rating, including scores below 4; uncertain results remain visible with warnings.
 - All tailored claims trace back to confirmed CV facts; original CV files are never overwritten.
 - Jobs can be reviewed in the dashboard and Telegram and marked saved, dismissed, or applied.
 - Search and generation failures do not silently discard run status or misrepresent a job as fully processed.
