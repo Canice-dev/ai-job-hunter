@@ -1,7 +1,9 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { Menu, PanelLeftOpen, Plus, Search, X } from "lucide-react";
 import ProfileOnboarding from "@/app/profile-onboarding";
+import AppSidebar, { type DashboardPage } from "@/components/app-sidebar";
 
 type JobStatus = "new" | "saved" | "dismissed" | "applied";
 type JobSource = "linkedin" | "upwork" | "manual";
@@ -144,6 +146,9 @@ export default function Home() {
   const [telegramCode, setTelegramCode] = useState("");
   const [telegramBusy, setTelegramBusy] = useState(false);
   const [telegramError, setTelegramError] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [activePage, setActivePage] = useState<DashboardPage>("home");
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -541,94 +546,44 @@ export default function Home() {
     );
   }
 
-  const ownerInitial = ownerEmail.slice(0, 1).toUpperCase() || "O";
-
   return (
-    <main className="app-shell">
-      <aside className="sidebar">
-        <a className="brand" href="#top" aria-label="Job Hunter home">
-          <span className="brand-mark" aria-hidden="true">
-            <span />
-          </span>
-          <span>
-            job<span className="brand-light">hunter</span>
-          </span>
-        </a>
-
-        <div className="sidebar-label">Workspace</div>
-        <nav className="side-nav" aria-label="Main navigation">
-          <a className="nav-item active" href="#jobs">
-            <span className="nav-icon grid-icon" aria-hidden="true" />
-            Overview
-          </a>
-          <a
-            className="nav-item"
-            href="#jobs"
-            onClick={() => setFilter("saved")}
-          >
-            <span className="nav-icon bookmark-icon" aria-hidden="true" />
-            Saved jobs
-          </a>
-          <a
-            className="nav-item"
-            href="#jobs"
-            onClick={() => setFilter("applied")}
-          >
-            <span className="nav-icon send-icon" aria-hidden="true" />
-            Applications
-          </a>
-          <button className="nav-item profile-nav-item" onClick={() => setManageProfile((value) => !value)}>
-            <span className="nav-icon profile-icon" aria-hidden="true" />
-            My profile
-          </button>
-        </nav>
-
-        <div className="sidebar-bottom">
-          <div className="assistant-card">
-            <span className="assistant-spark" aria-hidden="true">
-              ✳
-            </span>
-            <div>
-              <strong>Your job search, in one place.</strong>
-              <p>Save roles here to keep your search organized.</p>
-            </div>
-          </div>
-          <div className="profile-row">
-            <div className="avatar">{ownerInitial}</div>
-            <div className="profile-copy">
-              <strong>{ownerEmail}</strong>
-              <span>Personal account</span>
-            </div>
-            <button className="sign-out-button" onClick={() => void signOut()}>Sign out</button>
-          </div>
-        </div>
-      </aside>
-
+    <main className={["app-shell", sidebarCollapsed && "sidebar-collapsed", mobileSidebarOpen && "sidebar-mobile-open"].filter(Boolean).join(" ")}>
+      <AppSidebar
+        activePage={activePage}
+        collapsed={sidebarCollapsed}
+        mobileOpen={mobileSidebarOpen}
+        ownerEmail={ownerEmail}
+        telegramLinked={telegramStatus?.linked ?? false}
+        onCollapse={() => setSidebarCollapsed(true)}
+        onNavigate={(page) => {
+          setActivePage(page);
+          setMobileSidebarOpen(false);
+          setManageProfile(page === "profile");
+          if (page === "home") setFilter("all");
+          if (page === "saved") setFilter("saved");
+          if (page === "applications") setFilter("applied");
+          if (page === "telegram" && !telegramPanelOpen) void openTelegramPanel();
+        }}
+        onSearch={() => document.querySelector<HTMLInputElement>(".search-box input")?.focus()}
+        onSignOut={() => void signOut()}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+      />
       <section className="main-panel" id="top">
         <header className="topbar">
-          <div className="breadcrumb">
-            <span>Workspace</span>
-            <span className="crumb-divider">/</span>
-            <strong>Overview</strong>
-          </div>
-          <div className="topbar-right">
-            <span className="connection">
-              <span />
-              API connected
-            </span>
-            <button className="top-avatar" onClick={() => void signOut()} aria-label="Sign out">
-              {ownerInitial}
-            </button>
-          </div>
+          <button className="sidebar-expand-button" type="button" aria-label="Expand sidebar" onClick={() => setSidebarCollapsed(false)}><PanelLeftOpen size={18} /></button>
+          <button className="mobile-menu-button" type="button" aria-label="Open navigation" onClick={() => setMobileSidebarOpen(true)}><Menu size={19} /></button>
+          <a className="mobile-brand" href="#top" aria-label="Job Hunter home"><span className="brand-mark" aria-hidden="true"><span /></span><span>Job Hunter</span></a>
+          <button className="topbar-search-button" type="button" aria-label="Search jobs" onClick={() => document.querySelector<HTMLInputElement>(".search-box input")?.focus()}><Search size={18} /></button>
         </header>
 
-        <div className="content-wrap">
+        <div className={`content-wrap page-${activePage}`}>
           {manageProfile && (
             <ProfileOnboarding
-              onClose={() => setManageProfile(false)}
+              onClose={() => { setManageProfile(false); setActivePage("home"); }}
               onConfirmed={() => undefined}
               onDeleted={() => {
                 setManageProfile(false);
+                setActivePage("home");
                 setAuthState("onboarding");
                 setJobs([]);
               }}
@@ -636,8 +591,8 @@ export default function Home() {
           )}
           <section className="welcome-row">
             <div>
-              <p className="eyebrow">YOUR CAREER, IN MOTION</p>
-              <h1>Job search overview</h1>
+              <p className="eyebrow">PERSONAL WORKSPACE</p>
+              <h1>{activePage === "home" ? "Your job search" : activePage === "saved" ? "Saved jobs" : activePage === "applications" ? "Applications" : activePage === "profile" ? "My profile" : "Telegram connection"}</h1>
               <p className="welcome-subtitle">
                 A clear view of the opportunities you’re tracking.
               </p>
@@ -649,9 +604,7 @@ export default function Home() {
                 setNotice("");
               }}
             >
-              <span className="plus-icon" aria-hidden="true">
-                +
-              </span>
+              {formOpen ? <X size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
               {formOpen ? "Close form" : "Add a job"}
             </button>
           </section>
@@ -854,8 +807,8 @@ export default function Home() {
           <section className="jobs-section" id="jobs">
             <div className="jobs-heading">
               <div>
-                <h2>Your opportunities</h2>
-                <p>Keep every role and next step in view.</p>
+                <h2>Opportunities</h2>
+                <p>{visibleJobs.length} {visibleJobs.length === 1 ? "role" : "roles"} in this view</p>
               </div>
               <button
                 className="refresh-button"
@@ -897,7 +850,7 @@ export default function Home() {
                 ))}
               </div>
               <label className="search-box">
-                <span className="search-icon" aria-hidden="true" />
+                <Search className="search-icon" size={16} aria-hidden="true" />
                 <span className="sr-only">Search jobs</span>
                 <input
                   value={search}
