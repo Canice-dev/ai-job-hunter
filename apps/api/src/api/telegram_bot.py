@@ -10,17 +10,20 @@ from urllib.request import Request, urlopen
 
 from pydantic import ValidationError
 from sqlalchemy import delete, select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 import truststore
 
 from api.db.models import Job, TelegramLink
 from api.db.session import get_engine
 from api.schemas.jobs import JobPreviewRequest
-from api.services.job_import import build_job
+from api.services.job_import import build_job, normalize_source_url
+from api.services.remoteok_jobs import RemoteOKError, search_remoteok_jobs
 from api.services.telegram_linking import claim_link_code
 
 TELEGRAM_API = "https://api.telegram.org"
 VALID_STATUSES = {"new", "saved", "dismissed", "applied"}
+REMOTE_RESULT_LIMIT = 20
 
 
 class TelegramBot:
@@ -126,10 +129,12 @@ class TelegramBot:
                 self.update_note(chat_id, session, argument)
             elif command == "/import":
                 self.import_job(chat_id, session, argument)
-            elif command in {"/site", "/remote"}:
+            elif command == "/remote":
+                self.search_remote_jobs(chat_id, session, argument.strip())
+            elif command == "/site":
                 self.send(
                     chat_id,
-                    "Automated job search is not connected yet. Paste a listing with /import instead.",
+                    "On-site search is not connected yet. Use /remote <keywords> to search Remote OK for remote roles.",
                 )
             elif command == "/unlink":
                 session.execute(delete(TelegramLink).where(TelegramLink.owner_key == "owner"))
@@ -158,7 +163,8 @@ class TelegramBot:
             "/followup <job-id-prefix> <YYYY-MM-DD|-> — set or clear a follow-up date\n"
             "/note <job-id-prefix> | <text or -> — save or clear a private note\n"
             "/import <URL or -> | <title> | <company> | <description> — save a listing\n"
-            "/site or /remote — search status (automated sources are not connected yet)\n"
+            "/remote <keywords> — search and save matching Remote OK listings\n"
+            "/site — on-site search status\n"
             "/unlink — disconnect this Telegram chat"
         )
 
@@ -179,6 +185,73 @@ class TelegramBot:
             if job.source_url:
                 lines.append(job.source_url)
         self.send(chat_id, "\n".join(lines))
+
+    def search_remote_jobs(self, chat_id: int, session: Session, query: str) -> None:
+        if len(query) > 120:
+            self.send(chat_id, "Keep the /remote search under 120 characters.")
+            return
+        try:
+            listings, total = search_remoteok_jobs(query, limit=REMOTE_RESULT_LIMIT)
+        except RemoteOKError as exc:
+            self.send(chat_id, f"Remote OK search failed: {exc} Try again later or use the dashboard.")
+            return
+
+        if not listings:
+            search_label = f" for ‘{query}’" if query else ""
+            self.send(chat_id, f"No Remote OK listings matched{search_label}. Try broader keywords.")
+            return
+
+        jobs: list[Job] = []
+        new_count = 0
+        try:
+            for listing in listings:
+                job_request = JobPreviewRequest(
+                    source="remoteok",
+                    source_url=str(listing.url),
+                    title=listing.title,
+                    company=listing.company,
+                    location=listing.location or "Remote",
+                    work_mode="remote",
+                    description=listing.description,
+                )
+                normalized_url = normalize_source_url(str(job_request.source_url))
+                existing = session.scalar(
+                    select(Job).where(
+                        Job.source == "remoteok",
+                        Job.normalized_source_url == normalized_url,
+                    )
+                )
+                if existing is not None:
+                    jobs.append(existing)
+                    continue
+
+                job = build_job(job_request)
+                session.add(job)
+                session.flush()
+                jobs.append(job)
+                new_count += 1
+            session.commit()
+        except SQLAlchemyError:
+            session.rollback()
+            self.send(chat_id, "Remote OK listings were found, but I couldn't save them to your tracker. Try again later.")
+            return
+        query_label = f" for ‘{query}’" if query else ""
+        result_label = f"Showing {len(jobs)} of {total} matches." if total > len(jobs) else f"Found {total} matches."
+        self.send(
+            chat_id,
+            f"Remote OK{query_label}: {result_label} Added {new_count} new listing(s); "
+            f"{len(jobs) - new_count} were already saved. Check each listing for Nigeria eligibility.",
+        )
+
+        for start in range(0, len(jobs), 4):
+            lines: list[str] = []
+            for job in jobs[start : start + 4]:
+                company = f" — {job.company}" if job.company else ""
+                lines.append(
+                    f"{str(job.id)[:8]} · {job.title or 'Untitled role'}{company}\n"
+                    f"{job.location or 'Remote'} · {job.source_url or ''}"
+                )
+            self.send(chat_id, "\n\n".join(lines))
 
     def update_status(self, chat_id: int, session: Session, arguments: str) -> None:
         parts = arguments.split()

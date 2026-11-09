@@ -55,7 +55,7 @@ Create a bot with Telegram's `@BotFather`, copy its token into `TELEGRAM_BOT_TOK
 uv run --env-file .env python -m api.telegram_bot
 ```
 
-The bot supports `/jobs`, `/status <job-id-prefix> <new|saved|dismissed|applied>`, `/followup <job-id-prefix> <YYYY-MM-DD|->`, `/note <job-id-prefix> | <text or ->`, and `/import <URL or -> | <title> | <company> | <description>`. Marking a job applied records today's date; use `/followup` to set or clear a reminder date and `/note` for private application notes. `/site` and `/remote` explain that job search is not connected inside Telegram; Remote OK discovery is available in the dashboard. Run only one polling worker for a bot token. The bot only responds to private chats; unlink it from the dashboard or send `/unlink`.
+The bot supports `/jobs`, `/remote <keywords>`, `/status <job-id-prefix> <new|saved|dismissed|applied>`, `/followup <job-id-prefix> <YYYY-MM-DD|->`, `/note <job-id-prefix> | <text or ->`, and `/import <URL or -> | <title> | <company> | <description>`. `/remote` searches the cached Remote OK feed, saves matching listings to the tracker without duplicating source URLs, and replies with job IDs and links. Check each listing's Nigeria eligibility on its source page. `/site` on-site search is not connected yet. Marking a job applied records today's date; use `/followup` to set or clear a reminder date and `/note` for private application notes. Run only one polling worker for a bot token. The bot only responds to private chats; unlink it from the dashboard or send `/unlink`.
 
 ## CV onboarding
 
