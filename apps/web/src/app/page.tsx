@@ -31,6 +31,7 @@ type Filter = "all" | JobStatus;
 type AuthState = "checking" | "signed_out" | "onboarding" | "signed_in";
 type SessionResponse = { email: string };
 type ProfileStatus = { status: "missing" | "draft" | "confirmed"; full_name?: string | null };
+type TelegramStatus = { linked: boolean; linked_at: string | null };
 
 const DASHBOARD_API = "/api/backend";
 
@@ -86,6 +87,11 @@ export default function Home() {
   const [pageError, setPageError] = useState("");
   const [notice, setNotice] = useState("");
   const [formOpen, setFormOpen] = useState(false);
+  const [telegramPanelOpen, setTelegramPanelOpen] = useState(false);
+  const [telegramStatus, setTelegramStatus] = useState<TelegramStatus | null>(null);
+  const [telegramCode, setTelegramCode] = useState("");
+  const [telegramBusy, setTelegramBusy] = useState(false);
+  const [telegramError, setTelegramError] = useState("");
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -348,6 +354,56 @@ export default function Home() {
     }
   }
 
+  async function openTelegramPanel() {
+    const opening = !telegramPanelOpen;
+    setTelegramPanelOpen(opening);
+    setTelegramError("");
+    if (!opening) return;
+    setTelegramBusy(true);
+    try {
+      const response = await fetch(`${DASHBOARD_API}/telegram/status`, { cache: "no-store" });
+      if (!response.ok) throw new Error(await responseError(response));
+      setTelegramStatus((await response.json()) as TelegramStatus);
+    } catch (error) {
+      setTelegramError(error instanceof Error ? error.message : "Could not check Telegram link status.");
+    } finally {
+      setTelegramBusy(false);
+    }
+  }
+
+  async function createTelegramCode() {
+    setTelegramBusy(true);
+    setTelegramError("");
+    setTelegramCode("");
+    try {
+      const response = await fetch(`${DASHBOARD_API}/telegram/link-code`, { method: "POST" });
+      if (!response.ok) throw new Error(await responseError(response));
+      const result = (await response.json()) as { code: string; expires_at: string };
+      setTelegramCode(result.code);
+      setNotice(`Link code expires at ${new Intl.DateTimeFormat("en-NG", { hour: "numeric", minute: "2-digit" }).format(new Date(result.expires_at))}.`);
+    } catch (error) {
+      setTelegramError(error instanceof Error ? error.message : "Could not create a Telegram link code.");
+    } finally {
+      setTelegramBusy(false);
+    }
+  }
+
+  async function unlinkTelegram() {
+    setTelegramBusy(true);
+    setTelegramError("");
+    try {
+      const response = await fetch(`${DASHBOARD_API}/telegram/link`, { method: "DELETE" });
+      if (!response.ok) throw new Error(await responseError(response));
+      setTelegramStatus({ linked: false, linked_at: null });
+      setTelegramCode("");
+      setNotice("Telegram was unlinked.");
+    } catch (error) {
+      setTelegramError(error instanceof Error ? error.message : "Could not unlink Telegram.");
+    } finally {
+      setTelegramBusy(false);
+    }
+  }
+
   if (authState !== "signed_in") {
     if (authState === "onboarding") {
       return (
@@ -517,6 +573,41 @@ export default function Home() {
               </span>
               {formOpen ? "Close form" : "Add a job"}
             </button>
+          </section>
+
+          <section className="telegram-connection" aria-labelledby="telegram-title">
+            <div className="telegram-connection-heading">
+              <div>
+                <p className="eyebrow">OPTIONAL</p>
+                <h2 id="telegram-title">Telegram bot</h2>
+                <p>Review your saved jobs and update their status from a private Telegram chat.</p>
+              </div>
+              <button className="secondary-button" type="button" onClick={() => void openTelegramPanel()}>
+                {telegramPanelOpen ? "Close" : "Connect Telegram"}
+              </button>
+            </div>
+            {telegramPanelOpen && (
+              <div className="telegram-connection-body">
+                {telegramBusy && !telegramStatus ? <p>Checking link status…</p> : null}
+                {telegramStatus?.linked ? (
+                  <>
+                    <p>Telegram is linked to this account.</p>
+                    <button className="text-button" type="button" disabled={telegramBusy} onClick={() => void unlinkTelegram()}>
+                      {telegramBusy ? "Unlinking…" : "Unlink Telegram"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p>Create a one-time code, then send <code>/start YOUR_CODE</code> to your bot in a private chat. The code expires after 10 minutes.</p>
+                    {telegramCode && <p className="telegram-code" aria-live="polite">{telegramCode}</p>}
+                    <button className="secondary-button" type="button" disabled={telegramBusy} onClick={() => void createTelegramCode()}>
+                      {telegramBusy ? "Working…" : telegramCode ? "Create another code" : "Generate link code"}
+                    </button>
+                  </>
+                )}
+                {telegramError && <p className="telegram-error" role="alert">{telegramError}</p>}
+              </div>
+            )}
           </section>
 
           <section className="stats-grid" aria-label="Job search summary">

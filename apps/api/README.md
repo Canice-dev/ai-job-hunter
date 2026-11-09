@@ -45,6 +45,16 @@ The import endpoint stores only information the user supplies; it does not fetch
 
 Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/app/apikey) and put it in `AI_API_KEY` in `apps/api/.env`. The defaults use Gemini's OpenAI-compatible chat API and `gemini-3.8-flash`; `AI_BASE_URL`, `AI_MODEL`, and `AI_API_KEY` can be changed to switch providers. The score button appears on each job card after a profile is confirmed. Applying the migration adds cached assessment fields to existing job records. The scoring request sends the candidate's skills, summary, experience, and education plus the job details, but not direct identifiers or the raw CV. Google's unpaid Gemini API terms permit submitted content to be used to improve products and reviewed, and say not to submit personal information. Use synthetic profile data for free-tier testing; do not send a real candidate profile unless you have reviewed the terms and chosen an appropriate paid/privacy arrangement.
 
+## Telegram bot
+
+Create a bot with Telegram's `@BotFather`, copy its token into `TELEGRAM_BOT_TOKEN` in `apps/api/.env`, and keep that token private. Apply the current migrations, sign in to the dashboard, choose **Connect Telegram**, generate a code, then send `/start CODE` to your bot in a private chat. Link codes expire after 10 minutes and are one-use. Start the polling worker in a separate terminal from `apps/api`:
+
+```powershell
+uv run --env-file .env python -m api.telegram_bot
+```
+
+The bot supports `/jobs`, `/status <job-id-prefix> <new|saved|dismissed|applied>`, and `/import <URL or -> | <title> | <company> | <description>`. `/site` and `/remote` explain that automated search is not connected yet. Run only one polling worker for a bot token. The bot only responds to private chats; unlink it from the dashboard or send `/unlink`.
+
 ## CV onboarding
 
 Authenticated profile endpoints:

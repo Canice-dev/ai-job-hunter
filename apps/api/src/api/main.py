@@ -10,6 +10,7 @@ from api.db.session import get_engine
 from api.routes.auth import router as auth_router
 from api.routes.jobs import router as jobs_router
 from api.routes.profile import router as profile_router
+from api.routes.telegram import router as telegram_router
 
 app = FastAPI(
     title="Job Hunter API",
@@ -30,6 +31,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(jobs_router, prefix="/api/v1")
 app.include_router(profile_router, prefix="/api/v1")
+app.include_router(telegram_router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["operations"])
