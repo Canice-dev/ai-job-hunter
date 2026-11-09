@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 class JobPreviewRequest(BaseModel):
     """A job listing supplied by the user for preview before persistence."""
 
-    source: Literal["linkedin", "upwork", "manual"] = "manual"
+    source: Literal["linkedin", "upwork", "remoteok", "manual"] = "manual"
     source_url: HttpUrl | None = None
     title: str | None = Field(default=None, max_length=300)
     company: str | None = Field(default=None, max_length=300)
@@ -66,6 +66,24 @@ class JobRecordResponse(BaseModel):
 class JobImportResponse(BaseModel):
     job: JobRecordResponse
     created: bool
+
+
+class RemoteOKListing(BaseModel):
+    id: str
+    title: str
+    company: str
+    location: str
+    tags: list[str] = Field(default_factory=list)
+    description: str
+    url: HttpUrl
+    published_at: datetime | None = None
+
+
+class RemoteOKSearchResponse(BaseModel):
+    jobs: list[RemoteOKListing]
+    count: int
+    source_name: Literal["Remote OK"] = "Remote OK"
+    source_url: str = "https://remoteok.com"
 
 
 class JobStatusRequest(BaseModel):

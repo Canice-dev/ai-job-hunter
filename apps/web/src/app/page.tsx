@@ -1,12 +1,12 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { Menu, PanelLeftOpen, Plus, Search, X } from "lucide-react";
+import { ExternalLink, Menu, PanelLeftOpen, Plus, Search, X } from "lucide-react";
 import ProfileOnboarding from "@/app/profile-onboarding";
 import AppSidebar, { type DashboardPage } from "@/components/app-sidebar";
 
 type JobStatus = "new" | "saved" | "dismissed" | "applied";
-type JobSource = "linkedin" | "upwork" | "manual";
+type JobSource = "linkedin" | "upwork" | "remoteok" | "manual";
 type WorkMode = "on_site" | "remote" | "hybrid" | "unknown";
 
 type Job = {
@@ -37,6 +37,16 @@ type AuthState = "checking" | "signed_out" | "onboarding" | "signed_in";
 type SessionResponse = { email: string };
 type ProfileStatus = { status: "missing" | "draft" | "confirmed"; full_name?: string | null };
 type TelegramStatus = { linked: boolean; linked_at: string | null };
+type RemoteOKListing = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  tags: string[];
+  description: string;
+  url: string;
+  published_at: string | null;
+};
 
 const DASHBOARD_API = "/api/backend";
 
@@ -149,6 +159,14 @@ export default function Home() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [activePage, setActivePage] = useState<DashboardPage>("home");
+  const [remoteJobs, setRemoteJobs] = useState<RemoteOKListing[]>([]);
+  const [remoteJobCount, setRemoteJobCount] = useState(0);
+  const [remoteQuery, setRemoteQuery] = useState("");
+  const [remoteLoading, setRemoteLoading] = useState(false);
+  const [remoteLoaded, setRemoteLoaded] = useState(false);
+  const [remoteError, setRemoteError] = useState("");
+  const [remoteImportError, setRemoteImportError] = useState("");
+  const [importingRemoteJobId, setImportingRemoteJobId] = useState<string | null>(null);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -246,6 +264,36 @@ export default function Home() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  const loadRemoteJobs = useCallback(async (query = "") => {
+    setRemoteLoading(true);
+    setRemoteError("");
+    try {
+      const response = await fetch(
+        `${DASHBOARD_API}/jobs/discover/remoteok?q=${encodeURIComponent(query)}`,
+        { cache: "no-store" },
+      );
+      if (!response.ok) throw new Error(await responseError(response));
+      const result = (await response.json()) as {
+        jobs: RemoteOKListing[];
+        count: number;
+      };
+      setRemoteJobs(result.jobs);
+      setRemoteJobCount(result.count);
+      setRemoteLoaded(true);
+    } catch (error) {
+      setRemoteError(
+        error instanceof TypeError
+          ? "Could not reach the API. Make sure the Python server is running, then try again."
+          : error instanceof Error
+            ? error.message
+            : "Could not load Remote OK jobs. Please try again.",
+      );
+    } finally {
+      setRemoteLoaded(true);
+      setRemoteLoading(false);
+    }
   }, []);
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
@@ -363,6 +411,52 @@ export default function Home() {
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function importRemoteJob(listing: RemoteOKListing) {
+    setImportingRemoteJobId(listing.id);
+    setRemoteImportError("");
+    setPageError("");
+    setNotice("");
+    try {
+      const response = await fetch(`${DASHBOARD_API}/jobs/import`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          source: "remoteok",
+          source_url: listing.url,
+          title: listing.title,
+          company: listing.company,
+          location: listing.location,
+          work_mode: "remote",
+          description: listing.description,
+        }),
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      const result = (await response.json()) as JobImportResponse;
+      setJobs((current) => [
+        result.job,
+        ...current.filter((job) => job.id !== result.job.id),
+      ]);
+      setNotice(
+        result.created
+          ? `${listing.title} added to your jobs.`
+          : `${listing.title} is already in your jobs.`,
+      );
+    } catch (error) {
+      setRemoteImportError(
+        error instanceof Error
+          ? error.message
+          : "Could not add this Remote OK listing. Please try again.",
+      );
+    } finally {
+      setImportingRemoteJobId(null);
+    }
+  }
+
+  function searchRemoteJobs(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    void loadRemoteJobs(remoteQuery);
   }
 
   async function updateStatus(jobId: string, status: JobStatus) {
@@ -562,6 +656,9 @@ export default function Home() {
           if (page === "home") setFilter("all");
           if (page === "saved") setFilter("saved");
           if (page === "applications") setFilter("applied");
+          if (page === "discover" && !remoteLoaded && !remoteLoading) {
+            void loadRemoteJobs();
+          }
           if (page === "telegram" && !telegramPanelOpen) void openTelegramPanel();
         }}
         onSearch={() => document.querySelector<HTMLInputElement>(".search-box input")?.focus()}
@@ -592,28 +689,125 @@ export default function Home() {
           <section className="welcome-row">
             <div>
               <p className="eyebrow">PERSONAL WORKSPACE</p>
-              <h1>{activePage === "home" ? "Your job search" : activePage === "saved" ? "Saved jobs" : activePage === "applications" ? "Applications" : activePage === "profile" ? "My profile" : "Telegram connection"}</h1>
+              <h1>{activePage === "home" ? "Your job search" : activePage === "discover" ? "Discover jobs" : activePage === "saved" ? "Saved jobs" : activePage === "applications" ? "Applications" : activePage === "profile" ? "My profile" : "Telegram connection"}</h1>
               <p className="welcome-subtitle">
                 {activePage === "home"
                   ? "Keep the roles you find, compare your fit, and track the next step."
-                  : activePage === "saved"
-                    ? "Roles you saved to revisit and consider applying to."
-                    : activePage === "applications"
-                      ? "Track the roles you’ve applied to and the follow-up dates you’ve set."
-                      : "Manage your personal job search workspace."}
+                  : activePage === "discover"
+                    ? "Search remote listings from Remote OK and add the ones worth tracking."
+                    : activePage === "saved"
+                      ? "Roles you saved to revisit and consider applying to."
+                      : activePage === "applications"
+                        ? "Track the roles you’ve applied to and the follow-up dates you’ve set."
+                        : "Manage your personal job search workspace."}
               </p>
             </div>
-            <button
-              className="primary-button"
-              onClick={() => {
-                setFormOpen((open) => !open);
-                setNotice("");
-              }}
-            >
-              {formOpen ? <X size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
-              {formOpen ? "Close form" : "Add a job"}
-            </button>
+            {activePage !== "discover" && (
+              <button
+                className="primary-button"
+                onClick={() => {
+                  setFormOpen((open) => !open);
+                  setNotice("");
+                }}
+              >
+                {formOpen ? <X size={17} aria-hidden="true" /> : <Plus size={17} aria-hidden="true" />}
+                {formOpen ? "Close form" : "Add a job"}
+              </button>
+            )}
           </section>
+
+          {activePage === "discover" && (
+            <section className="remote-discovery" id="discover" aria-labelledby="remote-discovery-title">
+              <div className="remote-discovery-heading">
+                <div>
+                  <p className="eyebrow">REMOTE OK</p>
+                  <h2 id="remote-discovery-title">Remote opportunities</h2>
+                  <p>Browse remote roles, then add selected listings to your tracker.</p>
+                </div>
+                <button
+                  className="refresh-button"
+                  type="button"
+                  disabled={remoteLoading}
+                  onClick={() => void loadRemoteJobs(remoteQuery)}
+                >
+                  <span className={remoteLoading ? "refresh-glyph is-loading" : "refresh-glyph"} aria-hidden="true">↻</span>
+                  Refresh
+                </button>
+              </div>
+
+              <form className="remote-search-form" onSubmit={searchRemoteJobs}>
+                <label className="search-box">
+                  <Search className="search-icon" size={16} aria-hidden="true" />
+                  <span className="sr-only">Search Remote OK jobs</span>
+                  <input
+                    value={remoteQuery}
+                    onChange={(event) => setRemoteQuery(event.target.value)}
+                    placeholder="Search title, company, skills"
+                  />
+                </label>
+                <button className="primary-button" type="submit" disabled={remoteLoading}>
+                  Search jobs
+                </button>
+              </form>
+
+              <p className="remote-attribution">
+                Listings from <a href="https://remoteok.com" target="_blank" rel="noreferrer">Remote OK</a>. Check location eligibility and details on the original listing.
+              </p>
+
+              {remoteError && (
+                <div className="list-message remote-error" role="alert">
+                  <span>{remoteError}</span>
+                  <button type="button" onClick={() => void loadRemoteJobs(remoteQuery)}>Try again</button>
+                </div>
+              )}
+              {remoteImportError && <div className="list-message remote-error" role="alert">{remoteImportError}</div>}
+              {remoteError ? null : remoteLoading ? (
+                <div className="list-message"><span className="loading-ring" />Loading Remote OK jobs…</div>
+              ) : remoteJobs.length === 0 && !remoteError ? (
+                <div className="empty-state remote-empty-state">
+                  <h3>No Remote OK jobs match this search</h3>
+                  <p>Try a broader title, company, or skill.</p>
+                </div>
+              ) : (
+                <>
+                  <p className="remote-result-count">Showing {remoteJobs.length} of {remoteJobCount} matching listings</p>
+                  <div className="remote-job-list">
+                    {remoteJobs.map((listing) => {
+                      const alreadyAdded = jobs.some(
+                        (job) => job.source === "remoteok" && job.source_url === listing.url,
+                      );
+                      return (
+                        <article className="remote-job-card" key={listing.id}>
+                          <div className="remote-job-main">
+                            <div className="remote-job-title-row">
+                              <h3>{listing.title}</h3>
+                              <a href={listing.url} target="_blank" rel="noreferrer" aria-label={`View ${listing.title} on Remote OK`}>
+                                <ExternalLink size={16} aria-hidden="true" />
+                              </a>
+                            </div>
+                            <p className="remote-job-company">{listing.company} <span>·</span> {listing.location}</p>
+                            {listing.published_at && <p className="remote-job-date">Posted {dateLabel(listing.published_at)}</p>}
+                            <p className="remote-job-description">{listing.description}</p>
+                            <div className="remote-job-tags">
+                              {listing.tags.slice(0, 6).map((tag, index) => <span key={`${tag}-${index}`}>{tag}</span>)}
+                            </div>
+                          </div>
+                          <button
+                            className="secondary-button remote-import-button"
+                            type="button"
+                            disabled={alreadyAdded || importingRemoteJobId !== null}
+                            onClick={() => void importRemoteJob(listing)}
+                          >
+                            {importingRemoteJobId === listing.id ? "Adding…" : alreadyAdded ? "In your jobs" : "Add to jobs"}
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </section>
+          )}
 
           <section className="telegram-connection" aria-labelledby="telegram-title">
             <div className="telegram-connection-heading">
@@ -735,6 +929,7 @@ export default function Home() {
                     <option value="manual">Manual</option>
                     <option value="linkedin">LinkedIn</option>
                     <option value="upwork">Upwork</option>
+                    <option value="remoteok">Remote OK</option>
                   </select>
                 </label>
                 <label>
@@ -975,7 +1170,7 @@ export default function Home() {
                               : "Re-score"}
                         </button>
                         <span className="source-tag">
-                          {humanize(job.source)}
+                          {job.source === "remoteok" ? "Remote OK" : humanize(job.source)}
                         </span>
                         <span className="work-tag">
                           {humanize(job.work_mode)}

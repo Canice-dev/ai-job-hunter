@@ -2289,6 +2289,55 @@ h1 { font-size: clamp(28px, 3vw, 36px); line-height: 1.15; }
 .empty-state .secondary-button { min-height: 38px; }
 .cv-file-icon { width: 48px; height: 48px; }
 
+.page-discover > .telegram-connection,
+.page-discover > .stats-grid,
+.page-discover > .form-panel,
+.page-discover > .message-banner,
+.page-discover > .jobs-section,
+.page-discover > .page-footer { display: none !important; }
+.remote-discovery {
+  padding: 22px;
+  border: 1px solid #e2e3e8;
+  border-radius: 12px;
+  background: #fff;
+}
+.remote-discovery-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.remote-discovery-heading .eyebrow { margin-bottom: 6px; }
+.remote-discovery-heading h2 { margin: 0 0 5px; color: #272727; font-size: 20px; font-weight: 550; }
+.remote-discovery-heading p:last-child { margin: 0; color: #777; font-size: 14px; }
+.remote-search-form { display: flex; gap: 10px; margin: 22px 0 10px; }
+.remote-search-form .search-box { flex: 1; }
+.remote-search-form .search-box input { width: 100%; min-height: 42px; font-size: 14px; }
+.remote-attribution, .remote-result-count { color: #777; font-size: 13px; }
+.remote-attribution a { color: #30323a; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
+.remote-result-count { margin: 18px 0 8px; }
+.remote-job-list { display: grid; }
+.remote-job-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; gap: 20px; padding: 19px 0; border-top: 1px solid #ededf0; }
+.remote-job-title-row { display: flex; align-items: flex-start; gap: 8px; }
+.remote-job-title-row h3 { margin: 0; color: #252525; font-size: 17px; font-weight: 600; line-height: 1.4; }
+.remote-job-title-row a { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 28px; height: 28px; margin-top: -3px; border-radius: 6px; color: #666978; }
+.remote-job-title-row a:hover { background: #f4f4f6; color: #252525; }
+.remote-job-company { margin: 5px 0 0; color: #565963; font-size: 14px; }
+.remote-job-company span { padding: 0 4px; color: #a0a1a9; }
+.remote-job-date { margin: 3px 0 0; color: #898b94; font-size: 12px; }
+.remote-job-description { display: -webkit-box; overflow: hidden; margin: 10px 0 0; color: #565963; font-size: 14px; line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.remote-job-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.remote-job-tags span { padding: 3px 8px; border-radius: 5px; background: #f2f2f4; color: #656773; font-size: 12px; }
+.remote-import-button { min-height: 36px; white-space: nowrap; }
+.remote-error { justify-content: space-between; gap: 12px; border-color: #f0c2c0; background: #fce9e8; color: #a63d39; }
+.remote-error button { border: 0; background: transparent; color: inherit; font-size: 14px; font-weight: 650; }
+.remote-empty-state { border: 0; background: transparent; }
+
+@media (max-width: 740px) {
+  .remote-discovery { padding: 16px; }
+  .remote-discovery-heading { align-items: flex-start; }
+  .remote-discovery-heading h2 { font-size: 18px; }
+  .remote-search-form { align-items: stretch; flex-direction: column; margin-top: 17px; }
+  .remote-search-form .primary-button { min-height: 40px; }
+  .remote-job-card { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  .remote-import-button { justify-self: start; }
+}
+
 @media (max-width: 740px) {
   .job-card { grid-template-columns: 36px minmax(0, 1fr); }
   .job-side { grid-column: 2; }

@@ -14,10 +14,12 @@ from api.schemas.jobs import (
     JobPreviewResponse,
     JobRecordResponse,
     JobStatusRequest,
+    RemoteOKSearchResponse,
 )
 from api.security import require_owner
 from api.services.job_import import build_job, normalize_source_url
 from api.services.job_matching import AIProviderError, score_job_match
+from api.services.remoteok_jobs import RemoteOKError, search_remoteok_jobs
 
 router = APIRouter(
     prefix="/jobs",
@@ -47,6 +49,19 @@ def _job_response(job: Job, profile: Profile | None) -> JobRecordResponse:
             }
         )
     return response
+
+
+@router.get("/discover/remoteok", response_model=RemoteOKSearchResponse)
+def discover_remoteok_jobs(
+    q: str = Query(default="", max_length=120),
+    limit: int = Query(default=100, ge=1, le=100),
+) -> RemoteOKSearchResponse:
+    """Search the cached Remote OK feed without saving listings to the owner's tracker."""
+    try:
+        jobs, count = search_remoteok_jobs(q, limit)
+    except RemoteOKError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return RemoteOKSearchResponse(jobs=jobs, count=count)
 
 
 @router.post("/preview", response_model=JobPreviewResponse)

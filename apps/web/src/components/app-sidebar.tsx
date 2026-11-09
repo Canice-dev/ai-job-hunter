@@ -3,6 +3,7 @@
 import {
   Activity,
   Bookmark,
+  Globe,
   LayoutDashboard,
   LogOut,
   PanelLeftClose,
@@ -12,7 +13,7 @@ import {
   UserRound,
 } from "lucide-react";
 
-export type DashboardPage = "home" | "saved" | "applications" | "profile" | "telegram";
+export type DashboardPage = "home" | "discover" | "saved" | "applications" | "profile" | "telegram";
 
 type AppSidebarProps = {
   activePage: DashboardPage;
@@ -69,6 +70,10 @@ export default function AppSidebar({
           <a className={activePage === "home" ? "nav-item active" : "nav-item"} href="#jobs" onClick={() => onNavigate("home")} title={collapsed ? "Home" : undefined}>
             <LayoutDashboard className="nav-icon" size={18} aria-hidden="true" />
             Home
+          </a>
+          <a className={activePage === "discover" ? "nav-item active" : "nav-item"} href="#discover" onClick={() => onNavigate("discover")} title={collapsed ? "Discover jobs" : undefined}>
+            <Globe className="nav-icon" size={18} aria-hidden="true" />
+            Discover jobs
           </a>
           <a className={activePage === "saved" ? "nav-item active" : "nav-item"} href="#jobs" onClick={() => onNavigate("saved")} title={collapsed ? "Saved jobs" : undefined}>
             <Bookmark className="nav-icon" size={18} aria-hidden="true" />
