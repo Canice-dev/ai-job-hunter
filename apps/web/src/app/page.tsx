@@ -594,7 +594,13 @@ export default function Home() {
               <p className="eyebrow">PERSONAL WORKSPACE</p>
               <h1>{activePage === "home" ? "Your job search" : activePage === "saved" ? "Saved jobs" : activePage === "applications" ? "Applications" : activePage === "profile" ? "My profile" : "Telegram connection"}</h1>
               <p className="welcome-subtitle">
-                A clear view of the opportunities you’re tracking.
+                {activePage === "home"
+                  ? "Keep the roles you find, compare your fit, and track the next step."
+                  : activePage === "saved"
+                    ? "Roles you saved to revisit and consider applying to."
+                    : activePage === "applications"
+                      ? "Track the roles you’ve applied to and the follow-up dates you’ve set."
+                      : "Manage your personal job search workspace."}
               </p>
             </div>
             <button
@@ -807,8 +813,20 @@ export default function Home() {
           <section className="jobs-section" id="jobs">
             <div className="jobs-heading">
               <div>
-                <h2>Opportunities</h2>
-                <p>{visibleJobs.length} {visibleJobs.length === 1 ? "role" : "roles"} in this view</p>
+                <h2>
+                  {activePage === "saved"
+                    ? "Saved for later"
+                    : activePage === "applications"
+                      ? "Application tracker"
+                      : "Opportunities"}
+                </h2>
+                <p>
+                  {activePage === "saved"
+                    ? `${counts.saved} saved ${counts.saved === 1 ? "role" : "roles"} · ${visibleJobs.length} shown`
+                    : activePage === "applications"
+                      ? `${counts.applied} ${counts.applied === 1 ? "application" : "applications"} tracked · ${visibleJobs.length} shown`
+                      : `${visibleJobs.length} ${visibleJobs.length === 1 ? "role" : "roles"} in this view`}
+                </p>
               </div>
               <button
                 className="refresh-button"
@@ -860,6 +878,14 @@ export default function Home() {
               </label>
             </div>
 
+            {!loading && visibleJobs.length > 0 && (
+              <div className="jobs-list-heading" aria-hidden="true">
+                <span />
+                <span>Opportunity</span>
+                <span>Added · status</span>
+              </div>
+            )}
+
             <div className="jobs-list">
               {loading ? (
                 <div className="list-message">
@@ -873,16 +899,28 @@ export default function Home() {
                     <span className="empty-spark">✳</span>
                   </div>
                   <h3>
-                    {jobs.length === 0
-                      ? "Your next opportunity starts here"
-                      : "No jobs match this view"}
+                    {search.trim()
+                      ? "No jobs match your search"
+                      : jobs.length === 0
+                        ? "Your next opportunity starts here"
+                        : filter === "saved"
+                          ? "No saved jobs yet"
+                          : filter === "applied"
+                            ? "No applications yet"
+                            : "No jobs match this view"}
                   </h3>
                   <p>
-                    {jobs.length === 0
-                      ? "Add a listing you found and keep its details and application status together."
-                      : "Try another status filter or search term."}
+                    {search.trim()
+                      ? "Try a different search term or switch to another status filter."
+                      : jobs.length === 0
+                        ? "Add a listing you found and keep its details and application status together."
+                        : filter === "saved"
+                          ? "Save a role from Home and it will be waiting here when you want to revisit it."
+                          : filter === "applied"
+                            ? "Mark a role as Applied from its status menu to track it here."
+                            : "Try another status filter or search term."}
                   </p>
-                  {jobs.length === 0 && (
+                  {jobs.length === 0 && !search.trim() && (
                     <button
                       className="secondary-button"
                       onClick={() => setFormOpen(true)}
