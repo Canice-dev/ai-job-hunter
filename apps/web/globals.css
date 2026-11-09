@@ -1522,6 +1522,65 @@ h1 {
   line-height: 1.55;
 }
 
+.follow-up-editor {
+  grid-column: 2 / -1;
+  margin-top: 2px;
+  color: #66746b;
+  font-size: 12px;
+}
+
+.follow-up-editor > summary {
+  width: max-content;
+  color: var(--green);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.follow-up-fields {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  max-width: 680px;
+  margin-top: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfdfb;
+}
+
+.follow-up-fields label {
+  display: grid;
+  gap: 6px;
+  color: #53635a;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.follow-up-fields input,
+.follow-up-fields textarea {
+  width: 100%;
+  padding: 8px 9px;
+  border: 1px solid #dce5df;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--ink);
+  font-size: 12px;
+}
+
+.follow-up-fields textarea {
+  resize: vertical;
+}
+
+.follow-up-notes {
+  grid-column: 1 / -1;
+}
+
+.follow-up-fields .secondary-button {
+  justify-self: start;
+  margin-top: 0;
+}
+
 .job-description summary {
   width: max-content;
   color: var(--green);
@@ -1653,6 +1712,10 @@ h1 {
   }
 
   .job-description {
+    grid-column: 2;
+  }
+
+  .follow-up-editor {
     grid-column: 2;
   }
 

@@ -38,6 +38,7 @@ to choose an expiry between 1 and 168 hours.
 - List saved listings: `GET /api/v1/jobs`
 - Request an AI match assessment: `POST /api/v1/jobs/{job_id}/score`
 - Update status: `PATCH /api/v1/jobs/{job_id}/status` with `{"status":"saved"}`, `{"status":"dismissed"}`, or `{"status":"applied"}`
+- Save application dates and notes: `PATCH /api/v1/jobs/{job_id}/follow-up`
 
 The import endpoint stores only information the user supplies; it does not fetch job URLs or scrape platforms. AI matching is an explicit per-job request, and results are saved so refreshing the dashboard does not repeat provider calls. Listings with the same source and normalized URL are deduplicated. Jobs without a URL can be imported as separate records.
 
@@ -53,7 +54,7 @@ Create a bot with Telegram's `@BotFather`, copy its token into `TELEGRAM_BOT_TOK
 uv run --env-file .env python -m api.telegram_bot
 ```
 
-The bot supports `/jobs`, `/status <job-id-prefix> <new|saved|dismissed|applied>`, and `/import <URL or -> | <title> | <company> | <description>`. `/site` and `/remote` explain that automated search is not connected yet. Run only one polling worker for a bot token. The bot only responds to private chats; unlink it from the dashboard or send `/unlink`.
+The bot supports `/jobs`, `/status <job-id-prefix> <new|saved|dismissed|applied>`, `/followup <job-id-prefix> <YYYY-MM-DD|->`, `/note <job-id-prefix> | <text or ->`, and `/import <URL or -> | <title> | <company> | <description>`. Marking a job applied records today's date; use `/followup` to set or clear a reminder date and `/note` for private application notes. `/site` and `/remote` explain that automated search is not connected yet. Run only one polling worker for a bot token. The bot only responds to private chats; unlink it from the dashboard or send `/unlink`.
 
 ## CV onboarding
 

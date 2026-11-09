@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
 from uuid import UUID, uuid4
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, Index, JSON, String, Text, UniqueConstraint, Uuid, func
+from sqlalchemy import BigInteger, Date, DateTime, ForeignKey, Index, JSON, String, Text, UniqueConstraint, Uuid, func
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
@@ -30,6 +30,9 @@ class Job(Base):
     work_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
     description: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="new", index=True)
+    applied_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    follow_up_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     match_score: Mapped[int | None] = mapped_column(nullable=True)
     match_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
     match_strengths: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)

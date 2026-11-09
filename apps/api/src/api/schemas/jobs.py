@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -51,6 +51,9 @@ class JobRecordResponse(BaseModel):
     work_mode: str
     description: str
     status: str
+    applied_date: date | None = None
+    notes: str | None = None
+    follow_up_date: date | None = None
     match_score: int | None = None
     match_summary: str | None = None
     match_strengths: list[str] = Field(default_factory=list)
@@ -67,3 +70,17 @@ class JobImportResponse(BaseModel):
 
 class JobStatusRequest(BaseModel):
     status: Literal["new", "saved", "dismissed", "applied"]
+
+
+class JobFollowUpRequest(BaseModel):
+    applied_date: date | None = None
+    notes: str | None = Field(default=None, max_length=5000)
+    follow_up_date: date | None = None
+
+    @field_validator("notes")
+    @classmethod
+    def trim_notes(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None

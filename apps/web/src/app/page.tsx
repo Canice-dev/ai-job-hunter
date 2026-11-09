@@ -17,6 +17,9 @@ type Job = {
   work_mode: WorkMode;
   description: string;
   status: JobStatus;
+  applied_date: string | null;
+  notes: string | null;
+  follow_up_date: string | null;
   match_score: number | null;
   match_summary: string | null;
   match_strengths: string[];
@@ -71,6 +74,54 @@ async function responseError(response: Response) {
   return `The API returned ${response.status}. Please try again.`;
 }
 
+function JobFollowUp({
+  job,
+  saving,
+  onSave,
+}: {
+  job: Job;
+  saving: boolean;
+  onSave: (jobId: string, appliedDate: string, notes: string, followUpDate: string) => void;
+}) {
+  const [appliedDate, setAppliedDate] = useState(job.applied_date || "");
+  const [notes, setNotes] = useState(job.notes || "");
+  const [followUpDate, setFollowUpDate] = useState(job.follow_up_date || "");
+
+  return (
+    <details className="follow-up-editor">
+      <summary>Application follow-up</summary>
+      <div className="follow-up-fields">
+        <label>
+          Applied date
+          <input type="date" value={appliedDate} onChange={(event) => setAppliedDate(event.target.value)} />
+        </label>
+        <label>
+          Next follow-up
+          <input type="date" value={followUpDate} onChange={(event) => setFollowUpDate(event.target.value)} />
+        </label>
+        <label className="follow-up-notes">
+          Private notes
+          <textarea
+            value={notes}
+            maxLength={5000}
+            rows={3}
+            onChange={(event) => setNotes(event.target.value)}
+            placeholder="Recruiter contact, interview notes, or next steps"
+          />
+        </label>
+        <button
+          className="secondary-button"
+          type="button"
+          disabled={saving}
+          onClick={() => onSave(job.id, appliedDate, notes, followUpDate)}
+        >
+          {saving ? "Saving…" : "Save follow-up"}
+        </button>
+      </div>
+    </details>
+  );
+}
+
 export default function Home() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [authState, setAuthState] = useState<AuthState>("checking");
@@ -84,6 +135,7 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [scoringId, setScoringId] = useState<string | null>(null);
+  const [savingFollowUpId, setSavingFollowUpId] = useState<string | null>(null);
   const [pageError, setPageError] = useState("");
   const [notice, setNotice] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -329,6 +381,35 @@ export default function Home() {
       );
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  async function updateFollowUp(
+    jobId: string,
+    appliedDate: string,
+    notes: string,
+    followUpDate: string,
+  ) {
+    setSavingFollowUpId(jobId);
+    setPageError("");
+    try {
+      const response = await fetch(`${DASHBOARD_API}/jobs/${jobId}/follow-up`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          applied_date: appliedDate || null,
+          notes: notes.trim() || null,
+          follow_up_date: followUpDate || null,
+        }),
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      const updated = (await response.json()) as Job;
+      setJobs((current) => current.map((job) => (job.id === jobId ? updated : job)));
+      setNotice("Application follow-up saved.");
+    } catch (error) {
+      setPageError(error instanceof Error ? error.message : "Could not save application follow-up.");
+    } finally {
+      setSavingFollowUpId(null);
     }
   }
 
@@ -949,6 +1030,14 @@ export default function Home() {
                         )}
                       </details>
                     )}
+                    <JobFollowUp
+                      key={job.updated_at}
+                      job={job}
+                      saving={savingFollowUpId === job.id}
+                      onSave={(jobId, appliedDate, notes, followUpDate) =>
+                        void updateFollowUp(jobId, appliedDate, notes, followUpDate)
+                      }
+                    />
                   </article>
                 ))
               )}

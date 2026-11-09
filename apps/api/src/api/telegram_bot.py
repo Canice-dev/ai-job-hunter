@@ -3,6 +3,7 @@ import json
 import os
 import ssl
 import time
+from datetime import date, datetime, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -119,6 +120,10 @@ class TelegramBot:
                 self.list_jobs(chat_id, session)
             elif command == "/status":
                 self.update_status(chat_id, session, argument)
+            elif command == "/followup":
+                self.update_follow_up(chat_id, session, argument)
+            elif command == "/note":
+                self.update_note(chat_id, session, argument)
             elif command == "/import":
                 self.import_job(chat_id, session, argument)
             elif command in {"/site", "/remote"}:
@@ -150,6 +155,8 @@ class TelegramBot:
             "Job Hunter commands\n"
             "/jobs — show your latest saved listings\n"
             "/status <job-id-prefix> <new|saved|dismissed|applied> — update a listing\n"
+            "/followup <job-id-prefix> <YYYY-MM-DD|-> — set or clear a follow-up date\n"
+            "/note <job-id-prefix> | <text or -> — save or clear a private note\n"
             "/import <URL or -> | <title> | <company> | <description> — save a listing\n"
             "/site or /remote — search status (automated sources are not connected yet)\n"
             "/unlink — disconnect this Telegram chat"
@@ -165,6 +172,10 @@ class TelegramBot:
             label = job.title or "Untitled role"
             company = f" — {job.company}" if job.company else ""
             lines.append(f"{str(job.id)[:8]} · {label}{company} [{job.status}]")
+            if job.applied_date:
+                lines.append(f"Applied: {job.applied_date.isoformat()}")
+            if job.follow_up_date:
+                lines.append(f"Follow-up: {job.follow_up_date.isoformat()}")
             if job.source_url:
                 lines.append(job.source_url)
         self.send(chat_id, "\n".join(lines))
@@ -181,8 +192,49 @@ class TelegramBot:
             self.send(chat_id, "I couldn't identify one job from that ID prefix. Run /jobs and use a longer prefix.")
             return
         matching_jobs[0].status = status
+        if status == "applied" and matching_jobs[0].applied_date is None:
+            matching_jobs[0].applied_date = datetime.now(timezone.utc).date()
         session.commit()
         self.send(chat_id, f"{matching_jobs[0].title or 'Job'} marked {status}.")
+
+    def update_follow_up(self, chat_id: int, session: Session, arguments: str) -> None:
+        parts = arguments.split()
+        if len(parts) != 2:
+            self.send(chat_id, "Usage: /followup <job-id-prefix> <YYYY-MM-DD|->")
+            return
+        prefix, raw_date = parts
+        matches = session.scalars(select(Job).order_by(Job.created_at.desc()).limit(200)).all()
+        matching_jobs = [job for job in matches if str(job.id).startswith(prefix.lower())]
+        if len(matching_jobs) != 1:
+            self.send(chat_id, "I couldn't identify one job from that ID prefix. Run /jobs and use a longer prefix.")
+            return
+        try:
+            follow_up_date = None if raw_date == "-" else date.fromisoformat(raw_date)
+        except ValueError:
+            self.send(chat_id, "Use a date like 2026-12-01, or - to clear it.")
+            return
+        job = matching_jobs[0]
+        job.follow_up_date = follow_up_date
+        session.commit()
+        message = "cleared" if follow_up_date is None else f"set to {follow_up_date.isoformat()}"
+        self.send(chat_id, f"Follow-up date {message} for {job.title or 'job'}.")
+
+    def update_note(self, chat_id: int, session: Session, arguments: str) -> None:
+        parts = [part.strip() for part in arguments.split("|", maxsplit=1)]
+        if len(parts) != 2 or not parts[0] or not parts[1]:
+            self.send(chat_id, "Usage: /note <job-id-prefix> | <text or ->")
+            return
+        prefix, note = parts
+        matches = session.scalars(select(Job).order_by(Job.created_at.desc()).limit(200)).all()
+        matching_jobs = [job for job in matches if str(job.id).startswith(prefix.lower())]
+        if len(matching_jobs) != 1:
+            self.send(chat_id, "I couldn't identify one job from that ID prefix. Run /jobs and use a longer prefix.")
+            return
+        job = matching_jobs[0]
+        job.notes = None if note == "-" else note[:5000]
+        session.commit()
+        message = "cleared" if job.notes is None else "saved"
+        self.send(chat_id, f"Note {message} for {job.title or 'job'}.")
 
     def import_job(self, chat_id: int, session: Session, arguments: str) -> None:
         parts = [part.strip() for part in arguments.split("|", maxsplit=3)]

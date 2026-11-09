@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
@@ -8,6 +9,7 @@ from api.db.models import CVDocument, Job, Profile
 from api.db.session import get_session
 from api.schemas.jobs import (
     JobImportResponse,
+    JobFollowUpRequest,
     JobPreviewRequest,
     JobPreviewResponse,
     JobRecordResponse,
@@ -132,6 +134,29 @@ def update_job_status(
     if job is None:
         raise HTTPException(status_code=404, detail="Job not found.")
     job.status = request.status
+    if request.status == "applied" and job.applied_date is None:
+        job.applied_date = datetime.now(timezone.utc).date()
+    session.commit()
+    session.refresh(job)
+    return _job_response(job, _confirmed_profile(session))
+
+
+@router.patch("/{job_id}/follow-up", response_model=JobRecordResponse)
+def update_job_follow_up(
+    job_id: UUID,
+    request: JobFollowUpRequest,
+    session: Session = Depends(get_session),
+) -> JobRecordResponse:
+    """Save application notes and dates for a tracked listing."""
+    job = session.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    if "applied_date" in request.model_fields_set:
+        job.applied_date = request.applied_date
+    if "notes" in request.model_fields_set:
+        job.notes = request.notes
+    if "follow_up_date" in request.model_fields_set:
+        job.follow_up_date = request.follow_up_date
     session.commit()
     session.refresh(job)
     return _job_response(job, _confirmed_profile(session))
