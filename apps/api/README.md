@@ -36,9 +36,14 @@ to choose an expiry between 1 and 168 hours.
 - Preview without saving: `POST /api/v1/jobs/preview`
 - Import and persist a listing: `POST /api/v1/jobs/import`
 - List saved listings: `GET /api/v1/jobs`
+- Request an AI match assessment: `POST /api/v1/jobs/{job_id}/score`
 - Update status: `PATCH /api/v1/jobs/{job_id}/status` with `{"status":"saved"}`, `{"status":"dismissed"}`, or `{"status":"applied"}`
 
-The import endpoint stores only information the user supplies; it does not fetch job URLs, scrape platforms, score listings, or generate application materials. Listings with the same source and normalized URL are deduplicated. Jobs without a URL can be imported as separate records.
+The import endpoint stores only information the user supplies; it does not fetch job URLs or scrape platforms. AI matching is an explicit per-job request, and results are saved so refreshing the dashboard does not repeat provider calls. Listings with the same source and normalized URL are deduplicated. Jobs without a URL can be imported as separate records.
+
+## AI job matching
+
+Create a Gemini API key in [Google AI Studio](https://aistudio.google.com/app/apikey) and put it in `AI_API_KEY` in `apps/api/.env`. The defaults use Gemini's OpenAI-compatible chat API and `gemini-3.8-flash`; `AI_BASE_URL`, `AI_MODEL`, and `AI_API_KEY` can be changed to switch providers. The score button appears on each job card after a profile is confirmed. Applying the migration adds cached assessment fields to existing job records. The scoring request sends the candidate's skills, summary, experience, and education plus the job details, but not direct identifiers or the raw CV. Google's unpaid Gemini API terms permit submitted content to be used to improve products and reviewed, and say not to submit personal information. Use synthetic profile data for free-tier testing; do not send a real candidate profile unless you have reviewed the terms and chosen an appropriate paid/privacy arrangement.
 
 ## CV onboarding
 

@@ -17,6 +17,11 @@ type Job = {
   work_mode: WorkMode;
   description: string;
   status: JobStatus;
+  match_score: number | null;
+  match_summary: string | null;
+  match_strengths: string[];
+  match_gaps: string[];
+  match_scored_at: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -77,6 +82,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [scoringId, setScoringId] = useState<string | null>(null);
   const [pageError, setPageError] = useState("");
   const [notice, setNotice] = useState("");
   const [formOpen, setFormOpen] = useState(false);
@@ -317,6 +323,28 @@ export default function Home() {
       );
     } finally {
       setUpdatingId(null);
+    }
+  }
+
+  async function scoreJob(jobId: string) {
+    setScoringId(jobId);
+    setPageError("");
+    try {
+      const response = await fetch(`${DASHBOARD_API}/jobs/${jobId}/score`, {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      const updated = (await response.json()) as Job;
+      setJobs((current) =>
+        current.map((job) => (job.id === jobId ? updated : job)),
+      );
+      setNotice("AI job assessment is ready.");
+    } catch (error) {
+      setPageError(
+        error instanceof Error ? error.message : "Could not score this job.",
+      );
+    } finally {
+      setScoringId(null);
     }
   }
 
@@ -768,6 +796,21 @@ export default function Home() {
                         <span className={`status-pill status-${job.status}`}>
                           {statusLabels[job.status]}
                         </span>
+                        {job.match_score !== null && (
+                          <span className="match-score">{job.match_score}% AI match</span>
+                        )}
+                        <button
+                          className="score-button"
+                          type="button"
+                          disabled={scoringId !== null}
+                          onClick={() => void scoreJob(job.id)}
+                        >
+                          {scoringId === job.id
+                            ? "Scoring…"
+                            : job.match_score === null
+                              ? "Score with AI"
+                              : "Re-score"}
+                        </button>
                         <span className="source-tag">
                           {humanize(job.source)}
                         </span>
@@ -803,6 +846,18 @@ export default function Home() {
                       <summary>View description</summary>
                       <p>{job.description}</p>
                     </details>
+                    {job.match_summary && (
+                      <details className="match-details">
+                        <summary>AI assessment</summary>
+                        <p>{job.match_summary}</p>
+                        {job.match_strengths.length > 0 && (
+                          <p><strong>Strengths:</strong> {job.match_strengths.join(" · ")}</p>
+                        )}
+                        {job.match_gaps.length > 0 && (
+                          <p><strong>Gaps to consider:</strong> {job.match_gaps.join(" · ")}</p>
+                        )}
+                      </details>
+                    )}
                   </article>
                 ))
               )}

@@ -51,6 +51,11 @@ class JobRecordResponse(BaseModel):
     work_mode: str
     description: str
     status: str
+    match_score: int | None = None
+    match_summary: str | None = None
+    match_strengths: list[str] = Field(default_factory=list)
+    match_gaps: list[str] = Field(default_factory=list)
+    match_scored_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

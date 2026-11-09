@@ -30,6 +30,14 @@ class Job(Base):
     work_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="unknown")
     description: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="new", index=True)
+    match_score: Mapped[int | None] = mapped_column(nullable=True)
+    match_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    match_strengths: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    match_gaps: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)
+    match_scored_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    match_profile_confirmed_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )

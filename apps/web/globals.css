@@ -1381,6 +1381,57 @@ h1 {
   color: #728078;
 }
 
+.match-score {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #e8f4ec;
+  color: var(--green-dark);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.score-button {
+  min-height: 22px;
+  padding: 0 9px;
+  border: 1px solid #d7e4da;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--green-dark);
+  cursor: pointer;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.score-button:hover:not(:disabled) {
+  background: var(--green-soft);
+}
+
+.score-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.match-details {
+  grid-column: 2 / -1;
+  color: #65736a;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.match-details summary {
+  width: fit-content;
+  color: var(--green-dark);
+  cursor: pointer;
+  font-weight: 750;
+}
+
+.match-details p {
+  margin: 7px 0 0;
+}
+
 .job-side {
   align-items: flex-end;
   flex-direction: column;
