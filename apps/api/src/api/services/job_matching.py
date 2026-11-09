@@ -39,6 +39,36 @@ def _profile_context(profile_facts: Mapping[str, object]) -> dict[str, object]:
     return context
 
 
+def _parse_json_object(content: object) -> dict[str, Any]:
+    """Read a JSON object, tolerating markdown fences or brief surrounding text."""
+    if isinstance(content, Mapping):
+        return dict(content)
+    if not isinstance(content, str) or not content.strip():
+        raise ValueError("The provider returned no final text result.")
+
+    text = content.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text, flags=re.IGNORECASE).strip()
+    try:
+        result = json.loads(text)
+        if isinstance(result, dict):
+            return result
+    except json.JSONDecodeError:
+        pass
+
+    decoder = json.JSONDecoder()
+    for index, character in enumerate(text):
+        if character != "{":
+            continue
+        try:
+            result, _ = decoder.raw_decode(text[index:])
+        except json.JSONDecodeError:
+            continue
+        if isinstance(result, dict):
+            return result
+    raise ValueError("The provider did not return a JSON object.")
+
+
 def score_job_match(
     title: str | None,
     description: str,
@@ -103,6 +133,12 @@ def score_job_match(
             },
         ],
     }
+    if "integrate.api.nvidia.com" in base_url:
+        # Keep NVIDIA's reasoning tokens from consuming the small JSON response budget.
+        payload["temperature"] = 1
+        payload["top_p"] = 0.95
+        payload["max_tokens"] = 2048
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
     request = Request(
         f"{base_url}/chat/completions",
         data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
@@ -116,7 +152,7 @@ def score_job_match(
     except HTTPError as exc:
         if exc.code == 401:
             raise AIProviderError(
-                "The AI provider returned 401 Unauthorized. Check that AI_API_KEY in apps/api/.env is a valid Gemini API key."
+                "The configured AI provider returned 401 Unauthorized. Check that AI_BASE_URL and AI_MODEL point to the intended provider, and that AI_API_KEY in apps/api/.env is a valid key for that provider."
             ) from exc
         if exc.code == 403:
             try:
@@ -150,9 +186,7 @@ def score_job_match(
 
     try:
         content = provider_response["choices"][0]["message"]["content"]
-        if not isinstance(content, str):
-            raise ValueError("The provider returned no text result.")
-        result = json.loads(content)
+        result = _parse_json_object(content)
         return AIMatchResult.model_validate(
             {
                 **result,
