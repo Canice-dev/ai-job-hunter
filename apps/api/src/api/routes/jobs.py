@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from api.db.models import ApplicationMaterial, CVDocument, Job, Profile
+from api.db.models import ApplicationMaterial, CVDocument, Job, Profile, SearchRun
 from api.db.session import get_session
 from api.schemas.jobs import (
     JobImportResponse,
@@ -14,7 +14,10 @@ from api.schemas.jobs import (
     JobPreviewResponse,
     JobRecordResponse,
     JobStatusRequest,
+    RemoteOKSearchRequest,
     RemoteOKSearchResponse,
+    RemoteOKSearchRunResponse,
+    SearchRunResponse,
 )
 from api.schemas.materials import ApplicationMaterialsResponse, TailoredMaterialsContent
 from api.security import require_owner
@@ -70,6 +73,56 @@ def discover_remoteok_jobs(
     except RemoteOKError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     return RemoteOKSearchResponse(jobs=jobs, count=count)
+
+
+@router.post("/discover/remoteok/search", response_model=RemoteOKSearchRunResponse)
+def run_remoteok_search(
+    request: RemoteOKSearchRequest,
+    session: Session = Depends(get_session),
+) -> RemoteOKSearchRunResponse:
+    """Search Remote OK and save a compact history entry for the owner."""
+    try:
+        jobs, count = search_remoteok_jobs(request.query, limit=100)
+    except RemoteOKError as exc:
+        search_run = SearchRun(
+            source="remoteok",
+            query=request.query,
+            status="failed",
+            result_count=0,
+            error=str(exc)[:500],
+        )
+        session.add(search_run)
+        session.commit()
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    search_run = SearchRun(
+        source="remoteok",
+        query=request.query,
+        status="completed",
+        result_count=count,
+    )
+    session.add(search_run)
+    session.commit()
+    session.refresh(search_run)
+    return RemoteOKSearchRunResponse(
+        jobs=jobs,
+        count=count,
+        search_run=SearchRunResponse.model_validate(search_run),
+    )
+
+
+@router.get("/discover/remoteok/history", response_model=list[SearchRunResponse])
+def list_remoteok_search_history(
+    limit: int = Query(default=10, ge=1, le=50),
+    session: Session = Depends(get_session),
+) -> list[SearchRunResponse]:
+    runs = session.scalars(
+        select(SearchRun)
+        .where(SearchRun.source == "remoteok")
+        .order_by(SearchRun.created_at.desc())
+        .limit(limit)
+    )
+    return [SearchRunResponse.model_validate(run) for run in runs]
 
 
 @router.post("/preview", response_model=JobPreviewResponse)

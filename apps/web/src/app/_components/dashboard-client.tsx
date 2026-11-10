@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ExternalLink,
   Menu,
@@ -75,6 +75,15 @@ type RemoteOKListing = {
   url: string;
   published_at: string | null;
 };
+type RemoteSearchHistoryItem = {
+  id: string;
+  source: string;
+  query: string;
+  status: "completed" | "failed";
+  result_count: number;
+  error: string | null;
+  created_at: string;
+};
 
 const DASHBOARD_API = "/api/backend";
 
@@ -96,6 +105,15 @@ function dateLabel(value: string) {
     day: "numeric",
     month: "short",
     year: "numeric",
+  }).format(new Date(value));
+}
+
+function dateTimeLabel(value: string) {
+  return new Intl.DateTimeFormat("en-NG", {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
   }).format(new Date(value));
 }
 
@@ -218,10 +236,15 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
   const [remoteLoading, setRemoteLoading] = useState(false);
   const [remoteLoaded, setRemoteLoaded] = useState(false);
   const [remoteError, setRemoteError] = useState("");
+  const [remoteSearchHistory, setRemoteSearchHistory] = useState<
+    RemoteSearchHistoryItem[]
+  >([]);
+  const [remoteHistoryError, setRemoteHistoryError] = useState("");
   const [remoteImportError, setRemoteImportError] = useState("");
   const [importingRemoteJobId, setImportingRemoteJobId] = useState<
     string | null
   >(null);
+  const initialRemoteSearchStarted = useRef(false);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -323,13 +346,35 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
     };
   }, []);
 
+  const loadRemoteSearchHistory = useCallback(async () => {
+    setRemoteHistoryError("");
+    try {
+      const response = await fetch(
+        `${DASHBOARD_API}/jobs/discover/remoteok/history?limit=10`,
+        { cache: "no-store" },
+      );
+      if (!response.ok) throw new Error(await responseError(response));
+      setRemoteSearchHistory(
+        (await response.json()) as RemoteSearchHistoryItem[],
+      );
+    } catch (error) {
+      setRemoteHistoryError(
+        error instanceof Error ? error.message : "Could not load recent searches.",
+      );
+    }
+  }, []);
+
   const loadRemoteJobs = useCallback(async (query = "") => {
     setRemoteLoading(true);
     setRemoteError("");
     try {
       const response = await fetch(
-        `${DASHBOARD_API}/jobs/discover/remoteok?q=${encodeURIComponent(query)}`,
-        { cache: "no-store" },
+        `${DASHBOARD_API}/jobs/discover/remoteok/search`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+        },
       );
       if (!response.ok) throw new Error(await responseError(response));
       const result = (await response.json()) as {
@@ -348,10 +393,11 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
             : "Could not load Remote OK jobs. Please try again.",
       );
     } finally {
+      await loadRemoteSearchHistory();
       setRemoteLoaded(true);
       setRemoteLoading(false);
     }
-  }, []);
+  }, [loadRemoteSearchHistory]);
 
   useEffect(() => {
     setFilter(
@@ -365,9 +411,18 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
       authState === "signed_in" &&
       !remoteLoaded
     ) {
-      void loadRemoteJobs(remoteQuery);
+      if (!initialRemoteSearchStarted.current) {
+        initialRemoteSearchStarted.current = true;
+        void loadRemoteJobs(remoteQuery);
+      }
     }
-  }, [activePage, authState, loadRemoteJobs, remoteLoaded, remoteQuery]);
+  }, [
+    activePage,
+    authState,
+    loadRemoteJobs,
+    remoteLoaded,
+    remoteQuery,
+  ]);
 
   async function signIn(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -1047,6 +1102,47 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
                   Search jobs
                 </button>
               </form>
+
+              <section className="remote-search-history" aria-labelledby="recent-searches-title">
+                <div className="remote-search-history-heading">
+                  <h3 id="recent-searches-title">Recent searches</h3>
+                  <span>Last 10</span>
+                </div>
+                {remoteHistoryError ? (
+                  <p className="remote-history-message" role="status">
+                    Search history is unavailable. Apply the latest API migration and try again.
+                  </p>
+                ) : remoteSearchHistory.length === 0 ? (
+                  <p className="remote-history-message">Your searches will appear here.</p>
+                ) : (
+                  <ul className="remote-search-history-list">
+                    {remoteSearchHistory.map((item) => (
+                      <li key={item.id}>
+                        <div className="remote-search-history-query">
+                          <strong>{item.query || "All remote jobs"}</strong>
+                          <span>
+                            {item.status === "completed"
+                              ? `${item.result_count} matching ${item.result_count === 1 ? "listing" : "listings"}`
+                              : "Search failed"}
+                          </span>
+                        </div>
+                        <time dateTime={item.created_at}>{dateTimeLabel(item.created_at)}</time>
+                        <button
+                          className="text-button"
+                          type="button"
+                          disabled={remoteLoading}
+                          onClick={() => {
+                            setRemoteQuery(item.query);
+                            void loadRemoteJobs(item.query);
+                          }}
+                        >
+                          Run again
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
 
               <p className="remote-attribution">
                 Listings from{" "}

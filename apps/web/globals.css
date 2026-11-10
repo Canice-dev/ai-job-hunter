@@ -2360,6 +2360,17 @@ h1 { font-size: clamp(28px, 3vw, 36px); line-height: 1.15; }
 .remote-search-form { display: flex; gap: 10px; margin: 22px 0 10px; }
 .remote-search-form .search-box { flex: 1; }
 .remote-search-form .search-box input { width: 100%; min-height: 42px; font-size: 14px; }
+.remote-search-history { margin: 14px 0 16px; padding: 13px 14px; border: 1px solid #e8e9ec; border-radius: 9px; background: #fafbfc; }
+.remote-search-history-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.remote-search-history-heading h3 { margin: 0; color: #34363d; font-size: 13px; font-weight: 650; }
+.remote-search-history-heading > span { color: #888; font-size: 11px; }
+.remote-history-message { margin: 8px 0 0; color: #777; font-size: 12px; }
+.remote-search-history-list { display: grid; gap: 7px; margin: 10px 0 0; padding: 0; list-style: none; }
+.remote-search-history-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 14px; padding-top: 8px; border-top: 1px solid #eceef0; }
+.remote-search-history-query { display: grid; gap: 1px; min-width: 0; }
+.remote-search-history-query strong { overflow: hidden; color: #34363d; font-size: 12px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
+.remote-search-history-query span, .remote-search-history-list time { color: #85868d; font-size: 11px; }
+.remote-search-history-list .text-button { padding: 3px 0; font-size: 11px; white-space: nowrap; }
 .remote-attribution, .remote-result-count { color: #777; font-size: 13px; }
 .remote-attribution a { color: #30323a; font-weight: 600; text-decoration: underline; text-underline-offset: 2px; }
 .remote-result-count { margin: 18px 0 8px; }
@@ -2386,6 +2397,9 @@ h1 { font-size: clamp(28px, 3vw, 36px); line-height: 1.15; }
   .remote-discovery-heading h2 { font-size: 18px; }
   .remote-search-form { align-items: stretch; flex-direction: column; margin-top: 17px; }
   .remote-search-form .primary-button { min-height: 40px; }
+  .remote-search-history-list li { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; }
+  .remote-search-history-list time { grid-column: 1; }
+  .remote-search-history-list .text-button { grid-column: 2; grid-row: 1 / span 2; }
   .remote-job-card { grid-template-columns: minmax(0, 1fr); gap: 12px; }
   .remote-import-button { justify-self: start; }
 }

@@ -86,6 +86,31 @@ class RemoteOKSearchResponse(BaseModel):
     source_url: str = "https://remoteok.com"
 
 
+class RemoteOKSearchRequest(BaseModel):
+    query: str = Field(default="", max_length=120)
+
+    @field_validator("query")
+    @classmethod
+    def trim_query(cls, value: str) -> str:
+        return value.strip()
+
+
+class SearchRunResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    source: str
+    query: str
+    status: Literal["completed", "failed"]
+    result_count: int
+    error: str | None
+    created_at: datetime
+
+
+class RemoteOKSearchRunResponse(RemoteOKSearchResponse):
+    search_run: SearchRunResponse
+
+
 class JobStatusRequest(BaseModel):
     status: Literal["new", "saved", "dismissed", "applied"]
 

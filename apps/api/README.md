@@ -36,6 +36,8 @@ to choose an expiry between 1 and 168 hours.
 - Preview without saving: `POST /api/v1/jobs/preview`
 - Import and persist a listing: `POST /api/v1/jobs/import`
 - Discover Remote OK listings: `GET /api/v1/jobs/discover/remoteok?q=python&limit=50`
+- Search and record a Remote OK query: `POST /api/v1/jobs/discover/remoteok/search` with `{"query":"python"}`
+- List the 10 most recent Remote OK searches: `GET /api/v1/jobs/discover/remoteok/history?limit=10`
 - List saved listings: `GET /api/v1/jobs`
 - Request an AI match assessment: `POST /api/v1/jobs/{job_id}/score`
 - Generate/retrieve tailored application materials: `POST /api/v1/jobs/{job_id}/tailor` and `GET /api/v1/jobs/{job_id}/materials`
@@ -44,6 +46,8 @@ to choose an expiry between 1 and 168 hours.
 - Save application dates and notes: `PATCH /api/v1/jobs/{job_id}/follow-up`
 
 The import endpoint stores only information the user supplies; it does not fetch job URLs or scrape platforms. Remote OK discovery is a separate, authenticated read-only endpoint backed by its public JSON feed. The feed is cached in memory for 15 minutes, and selected listings are saved through the existing import endpoint. The dashboard links back to Remote OK and identifies it as the source. AI matching is an explicit per-job request, and results are saved so refreshing the dashboard does not repeat provider calls. Listings with the same source and normalized URL are deduplicated. Jobs without a URL can be imported as separate records.
+
+Remote OK searches from the dashboard are stored as a recent-search history with the query, time, result count, and success/failure status. The history stores search metadata only, not job listing contents. The API's read-only `GET /discover/remoteok` endpoint remains available without recording a search.
 
 ## AI job matching
 

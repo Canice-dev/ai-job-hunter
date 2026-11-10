@@ -111,6 +111,21 @@ class ApplicationMaterial(Base):
     )
 
 
+class SearchRun(Base):
+    __tablename__ = "search_runs"
+    __table_args__ = (Index("ix_search_runs_created_at", "created_at"),)
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    source: Mapped[str] = mapped_column(String(20), nullable=False)
+    query: Mapped[str] = mapped_column(String(120), nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    result_count: Mapped[int] = mapped_column(nullable=False, default=0)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class TelegramLink(Base):
     __tablename__ = "telegram_links"
 
