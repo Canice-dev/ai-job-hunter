@@ -32,6 +32,20 @@ type Job = {
 };
 
 type JobImportResponse = { job: Job; created: boolean };
+type MaterialClaim = { text: string; sources: { section: string; index: number }[] };
+type ApplicationMaterials = {
+  id: string;
+  job_id: string;
+  created_at: string;
+  content: {
+    summary: MaterialClaim;
+    skills: MaterialClaim[];
+    experience: MaterialClaim[];
+    education: MaterialClaim[];
+    cover_letter: MaterialClaim[];
+  };
+  warning: string;
+};
 type Filter = "all" | JobStatus;
 type AuthState = "checking" | "signed_out" | "onboarding" | "signed_in";
 type SessionResponse = { email: string };
@@ -147,6 +161,9 @@ export default function Home() {
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [scoringId, setScoringId] = useState<string | null>(null);
+  const [tailoringId, setTailoringId] = useState<string | null>(null);
+  const [materialsByJob, setMaterialsByJob] = useState<Record<string, ApplicationMaterials>>({});
+  const [tailoringErrors, setTailoringErrors] = useState<Record<string, string>>({});
   const [savingFollowUpId, setSavingFollowUpId] = useState<string | null>(null);
   const [pageError, setPageError] = useState("");
   const [notice, setNotice] = useState("");
@@ -531,6 +548,51 @@ export default function Home() {
       );
     } finally {
       setScoringId(null);
+    }
+  }
+
+  async function prepareApplication(job: Job) {
+    setTailoringId(job.id);
+    setTailoringErrors((current) => ({ ...current, [job.id]: "" }));
+    try {
+      let response = await fetch(`${DASHBOARD_API}/jobs/${job.id}/materials`, {
+        cache: "no-store",
+      });
+      if (response.status === 404) {
+        response = await fetch(`${DASHBOARD_API}/jobs/${job.id}/tailor`, {
+          method: "POST",
+        });
+      }
+      if (!response.ok) throw new Error(await responseError(response));
+      const materials = (await response.json()) as ApplicationMaterials;
+      setMaterialsByJob((current) => ({ ...current, [job.id]: materials }));
+    } catch (error) {
+      setTailoringErrors((current) => ({
+        ...current,
+        [job.id]: error instanceof Error ? error.message : "Could not prepare these documents.",
+      }));
+    } finally {
+      setTailoringId(null);
+    }
+  }
+
+  async function regenerateApplication(job: Job) {
+    setTailoringId(job.id);
+    setTailoringErrors((current) => ({ ...current, [job.id]: "" }));
+    try {
+      const response = await fetch(`${DASHBOARD_API}/jobs/${job.id}/tailor`, {
+        method: "POST",
+      });
+      if (!response.ok) throw new Error(await responseError(response));
+      const materials = (await response.json()) as ApplicationMaterials;
+      setMaterialsByJob((current) => ({ ...current, [job.id]: materials }));
+    } catch (error) {
+      setTailoringErrors((current) => ({
+        ...current,
+        [job.id]: error instanceof Error ? error.message : "Could not regenerate these documents.",
+      }));
+    } finally {
+      setTailoringId(null);
     }
   }
 
@@ -1216,6 +1278,83 @@ export default function Home() {
                         )}
                       </details>
                     )}
+                    <section className="application-materials" aria-label="AI-tailored application documents">
+                      <div className="application-materials-heading">
+                        <div>
+                          <h4>CV and cover letter</h4>
+                          <p>Drafted from your confirmed profile and this job description.</p>
+                        </div>
+                        <button
+                          className="secondary-button"
+                          type="button"
+                          disabled={tailoringId !== null}
+                          onClick={() => void (materialsByJob[job.id]
+                            ? regenerateApplication(job)
+                            : prepareApplication(job))}
+                        >
+                          {tailoringId === job.id
+                            ? "Preparing…"
+                            : materialsByJob[job.id]
+                              ? "Regenerate with AI"
+                              : "Tailor CV with AI"}
+                        </button>
+                      </div>
+                      {tailoringErrors[job.id] && (
+                        <p className="application-materials-error" role="alert">
+                          {tailoringErrors[job.id]}
+                        </p>
+                      )}
+                      {materialsByJob[job.id] && (
+                        <div className="application-materials-result">
+                          <p className="application-materials-warning">
+                            {materialsByJob[job.id].warning} The original CV is unchanged. These documents use a clean layout.
+                          </p>
+                          <div className="material-downloads">
+                            {(["cv", "cover-letter"] as const).map((kind) => (
+                              <div className="material-download-group" key={kind}>
+                                <strong>{kind === "cv" ? "Tailored CV" : "Cover letter"}</strong>
+                                {(["docx", "pdf"] as const).map((format) => (
+                                  <a
+                                    key={`${kind}-${format}`}
+                                    className="material-download-link"
+                                    href={`${DASHBOARD_API}/jobs/${job.id}/materials/${kind}/${format}`}
+                                  >
+                                    {format.toUpperCase()}
+                                  </a>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+                          <details className="material-preview">
+                            <summary>Review the generated content</summary>
+                            <h5>Professional summary</h5>
+                            <p>{materialsByJob[job.id].content.summary.text}</p>
+                            <small>Profile source: {materialsByJob[job.id].content.summary.sources.map((source) => source.text || `${humanize(source.section)} #${source.index + 1}`).join(" · ")}</small>
+                            {(["skills", "experience", "education"] as const).map((section) => {
+                              const claims = materialsByJob[job.id].content[section];
+                              return claims.length ? (
+                                <div key={section}>
+                                  <h5>{humanize(section)}</h5>
+                                  <ul>{claims.map((claim, index) => (
+                                    <li key={`${section}-${index}`}>
+                                      {claim.text}
+                                      <small>Profile source: {claim.sources.map((source) => source.text || `${humanize(source.section)} #${source.index + 1}`).join(" · ")}</small>
+                                    </li>
+                                  ))}</ul>
+                                </div>
+                              ) : null;
+                            })}
+                            <h5>Cover letter</h5>
+                            {materialsByJob[job.id].content.cover_letter.map((paragraph, index) => (
+                              <p key={`letter-${index}`}>
+                                {paragraph.text}
+                                <small>Profile source: {paragraph.sources.map((source) => source.text || `${humanize(source.section)} #${source.index + 1}`).join(" · ")}</small>
+                              </p>
+                            ))}
+                          </details>
+                        </div>
+                      )}
+                    </section>
                     <JobFollowUp
                       key={job.updated_at}
                       job={job}

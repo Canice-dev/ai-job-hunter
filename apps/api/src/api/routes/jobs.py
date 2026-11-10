@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from api.db.models import CVDocument, Job, Profile
+from api.db.models import ApplicationMaterial, CVDocument, Job, Profile
 from api.db.session import get_session
 from api.schemas.jobs import (
     JobImportResponse,
@@ -16,9 +16,17 @@ from api.schemas.jobs import (
     JobStatusRequest,
     RemoteOKSearchResponse,
 )
+from api.schemas.materials import ApplicationMaterialsResponse, TailoredMaterialsContent
 from api.security import require_owner
 from api.services.job_import import build_job, normalize_source_url
 from api.services.job_matching import AIProviderError, score_job_match
+from api.services.cv_tailoring import (
+    TailoringProviderError,
+    create_docx,
+    create_pdf,
+    safe_download_stem,
+    tailor_application,
+)
 from api.services.remoteok_jobs import RemoteOKError, search_remoteok_jobs
 
 router = APIRouter(
@@ -137,6 +145,140 @@ def score_job(
     session.commit()
     session.refresh(job)
     return _job_response(job, profile)
+
+
+def _current_material(
+    session: Session, job_id: UUID, profile: Profile | None
+) -> ApplicationMaterial | None:
+    if profile is None:
+        return None
+    material = session.scalar(
+        select(ApplicationMaterial).where(ApplicationMaterial.job_id == job_id)
+    )
+    if (
+        material is None
+        or material.cv_document_id != profile.cv_document_id
+        or material.profile_confirmed_at != profile.confirmed_at
+    ):
+        return None
+    return material
+
+
+def _reviewable_content(
+    content: dict[str, object], profile: Profile
+) -> TailoredMaterialsContent:
+    result = TailoredMaterialsContent.model_validate(content)
+    sections = {
+        "summary": [str(profile.facts.get("summary", ""))] if str(profile.facts.get("summary", "")).strip() else [],
+        "skills": profile.facts.get("skills", []),
+        "experience": profile.facts.get("experience", []),
+        "education": profile.facts.get("education", []),
+    }
+    for claim in [result.summary, *result.skills, *result.experience, *result.education, *result.cover_letter]:
+        for source in claim.sources:
+            values = sections[source.section]
+            if isinstance(values, list) and source.index < len(values):
+                source.text = str(values[source.index])
+    return result
+
+
+@router.get("/{job_id}/materials", response_model=ApplicationMaterialsResponse)
+def get_application_materials(
+    job_id: UUID,
+    session: Session = Depends(get_session),
+) -> ApplicationMaterialsResponse:
+    job = session.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    profile = _confirmed_profile(session)
+    if profile is None:
+        raise HTTPException(status_code=409, detail="Confirm your profile before preparing application materials.")
+    material = _current_material(session, job_id, profile)
+    if material is None:
+        raise HTTPException(status_code=404, detail="No current application materials have been prepared for this job.")
+    return ApplicationMaterialsResponse(
+        id=material.id,
+        job_id=material.job_id,
+        created_at=material.created_at,
+        content=_reviewable_content(material.content, profile),
+    )
+
+
+@router.post("/{job_id}/tailor", response_model=ApplicationMaterialsResponse, status_code=201)
+def prepare_application_materials(
+    job_id: UUID,
+    session: Session = Depends(get_session),
+) -> ApplicationMaterialsResponse:
+    job = session.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    profile = _confirmed_profile(session)
+    if profile is None:
+        raise HTTPException(status_code=409, detail="Confirm your profile before preparing application materials.")
+    try:
+        content = tailor_application(job.title, job.company, job.description, profile.facts)
+    except TailoringProviderError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    material = session.scalar(
+        select(ApplicationMaterial).where(ApplicationMaterial.job_id == job_id)
+    )
+    if material is None:
+        material = ApplicationMaterial(
+            job_id=job_id,
+            cv_document_id=profile.cv_document_id,
+            profile_confirmed_at=profile.confirmed_at,
+            content=content.model_dump(mode="json"),
+        )
+        session.add(material)
+    else:
+        material.cv_document_id = profile.cv_document_id
+        material.profile_confirmed_at = profile.confirmed_at
+        material.content = content.model_dump(mode="json")
+    session.commit()
+    session.refresh(material)
+    return ApplicationMaterialsResponse(
+        id=material.id,
+        job_id=material.job_id,
+        created_at=material.created_at,
+        content=_reviewable_content(material.content, profile),
+    )
+
+
+@router.get("/{job_id}/materials/{kind}/{file_format}")
+def download_application_material(
+    job_id: UUID,
+    kind: str,
+    file_format: str,
+    session: Session = Depends(get_session),
+) -> Response:
+    if kind not in {"cv", "cover-letter"} or file_format not in {"docx", "pdf"}:
+        raise HTTPException(status_code=404, detail="Application document not found.")
+    job = session.get(Job, job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail="Job not found.")
+    profile = _confirmed_profile(session)
+    material = _current_material(session, job_id, profile)
+    if profile is None or material is None:
+        raise HTTPException(status_code=404, detail="Prepare current application materials before downloading.")
+
+    content = TailoredMaterialsContent.model_validate(material.content)
+    document_kind = kind  # path validation above narrows this at runtime
+    document_format = file_format
+    if document_format == "docx":
+        data = create_docx(content.model_dump(mode="json"), profile.facts, document_kind)  # type: ignore[arg-type]
+        media_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    else:
+        data = create_pdf(content.model_dump(mode="json"), profile.facts, document_kind)  # type: ignore[arg-type]
+        media_type = "application/pdf"
+    title = safe_download_stem(job.title or "application")
+    suffix = "cv" if document_kind == "cv" else "cover-letter"
+    filename = f"{title}-{suffix}.{document_format}"
+    return Response(
+        content=data,
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.patch("/{job_id}/status", response_model=JobRecordResponse)

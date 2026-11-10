@@ -94,6 +94,23 @@ class Profile(Base):
     confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
 
 
+class ApplicationMaterial(Base):
+    __tablename__ = "application_materials"
+
+    id: Mapped[UUID] = mapped_column(Uuid(as_uuid=True), primary_key=True, default=uuid4)
+    job_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False, unique=True
+    )
+    cv_document_id: Mapped[UUID] = mapped_column(
+        Uuid(as_uuid=True), ForeignKey("cv_documents.id", ondelete="CASCADE"), nullable=False
+    )
+    profile_confirmed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    content: Mapped[dict[str, object]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
 class TelegramLink(Base):
     __tablename__ = "telegram_links"
 

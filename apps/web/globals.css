@@ -1528,6 +1528,58 @@ h1 {
   margin: 7px 0 0;
 }
 
+.application-materials {
+  grid-column: 2 / -1;
+  margin-top: 4px;
+  padding: 13px;
+  border: 1px solid #e1e8e3;
+  border-radius: 8px;
+  background: #f8fbf9;
+}
+
+.application-materials-heading,
+.material-download-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.application-materials-heading {
+  justify-content: space-between;
+}
+
+.application-materials-heading h4,
+.application-materials-heading p {
+  margin: 0;
+}
+
+.application-materials-heading h4 {
+  color: #26382e;
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.application-materials-heading p,
+.application-materials-warning,
+.application-materials-error {
+  color: #69776e;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.application-materials-error { color: #a43737; margin: 9px 0 0; }
+.application-materials-warning { margin: 12px 0 8px; }
+.material-downloads { display: flex; flex-wrap: wrap; gap: 10px; }
+.material-download-group { gap: 6px; }
+.material-download-group strong { color: #425249; font-size: 10px; margin-right: 2px; }
+.material-download-link { color: #176a47; font-size: 10px; font-weight: 800; text-decoration: underline; text-underline-offset: 2px; }
+.material-preview { margin-top: 12px; border-top: 1px solid #e5ebe7; padding-top: 9px; color: #5c6a61; font-size: 11px; line-height: 1.55; }
+.material-preview summary { width: fit-content; cursor: pointer; color: #176a47; font-weight: 750; }
+.material-preview h5 { margin: 10px 0 3px; color: #33443a; font-size: 11px; }
+.material-preview p { margin: 4px 0; white-space: pre-wrap; }
+.material-preview ul { margin: 4px 0; padding-left: 20px; }
+.material-preview small { display: block; margin-top: 2px; color: #839087; font-size: 9px; }
+
 .job-side {
   align-items: flex-end;
   flex-direction: column;

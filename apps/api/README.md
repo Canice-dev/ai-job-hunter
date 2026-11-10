@@ -38,6 +38,8 @@ to choose an expiry between 1 and 168 hours.
 - Discover Remote OK listings: `GET /api/v1/jobs/discover/remoteok?q=python&limit=50`
 - List saved listings: `GET /api/v1/jobs`
 - Request an AI match assessment: `POST /api/v1/jobs/{job_id}/score`
+- Generate/retrieve tailored application materials: `POST /api/v1/jobs/{job_id}/tailor` and `GET /api/v1/jobs/{job_id}/materials`
+- Download a tailored CV or cover letter as DOCX/PDF: `GET /api/v1/jobs/{job_id}/materials/{cv|cover-letter}/{docx|pdf}`
 - Update status: `PATCH /api/v1/jobs/{job_id}/status` with `{"status":"saved"}`, `{"status":"dismissed"}`, or `{"status":"applied"}`
 - Save application dates and notes: `PATCH /api/v1/jobs/{job_id}/follow-up`
 
@@ -46,6 +48,12 @@ The import endpoint stores only information the user supplies; it does not fetch
 ## AI job matching
 
 Configure `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL` in `apps/api/.env` for an OpenAI-compatible chat-completions provider. For NVIDIA Build, use `https://integrate.api.nvidia.com/v1` as the base URL and a model ID such as `nvidia/nemotron-3.5-lightning-30b-a3b`. The score button appears on each job card after a profile is confirmed. Match ratings use a 1.0–5.0 scale in tenths, and every scored job remains visible, including ratings below 4. The scoring request sends candidate skills, summary, experience, and education plus the job details, but not direct identifiers or the raw CV. Review the selected provider's data-retention terms before sending real profile information; use synthetic profile data while evaluating a provider.
+
+## Tailored application materials
+
+From a job card, choose **Tailor CV with AI**. The API sends the confirmed profile's summary, skills, experience, and education plus the selected job description to the configured AI provider. It does not send the uploaded file or the profile's name, email, or phone fields. Each generated claim must cite an indexed profile fact; the dashboard displays those source facts next to the draft for review. The generated CV and cover letter are available as DOCX and PDF in a clean layout. The original upload is unchanged. Materials are stored as structured text linked to the job and confirmed CV; replacing or deleting the CV invalidates or removes its generated materials. Review all AI content before applying, and check the provider's retention terms before sending real profile data.
+
+After deploying this version, apply the migration with `uv run --env-file .env alembic upgrade head`.
 
 ## Telegram bot
 
