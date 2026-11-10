@@ -12,6 +12,7 @@ import {
   Send,
   UserRound,
 } from "lucide-react";
+import Link from "next/link";
 
 export type DashboardPage = "home" | "discover" | "saved" | "applications" | "profile" | "telegram";
 
@@ -46,10 +47,10 @@ export default function AppSidebar({
     <>
       <aside className="sidebar" aria-hidden={collapsed && !mobileOpen}>
         <div className="sidebar-brand-row">
-          <a className="brand" href="#top" aria-label="Job Hunter home">
+          <Link className="brand" href="/" aria-label="Job Hunter home">
             <span className="brand-mark" aria-hidden="true"><span /></span>
             <span className="brand-name">job<span className="brand-light">hunter</span></span>
-          </a>
+          </Link>
           <button
             className="sidebar-collapse-button"
             type="button"
@@ -67,34 +68,34 @@ export default function AppSidebar({
         </button>
         <div className="sidebar-label">Workspace</div>
         <nav className="side-nav" aria-label="Main navigation">
-          <a className={activePage === "home" ? "nav-item active" : "nav-item"} href="#jobs" onClick={() => onNavigate("home")} title={collapsed ? "Home" : undefined}>
+          <Link className={activePage === "home" ? "nav-item active" : "nav-item"} href="/" onClick={() => onNavigate("home")} title={collapsed ? "Home" : undefined}>
             <LayoutDashboard className="nav-icon" size={18} aria-hidden="true" />
             Home
-          </a>
-          <a className={activePage === "discover" ? "nav-item active" : "nav-item"} href="#discover" onClick={() => onNavigate("discover")} title={collapsed ? "Discover jobs" : undefined}>
+          </Link>
+          <Link className={activePage === "discover" ? "nav-item active" : "nav-item"} href="/discover" onClick={() => onNavigate("discover")} title={collapsed ? "Discover jobs" : undefined}>
             <Globe className="nav-icon" size={18} aria-hidden="true" />
             Discover jobs
-          </a>
-          <a className={activePage === "saved" ? "nav-item active" : "nav-item"} href="#jobs" onClick={() => onNavigate("saved")} title={collapsed ? "Saved jobs" : undefined}>
+          </Link>
+          <Link className={activePage === "saved" ? "nav-item active" : "nav-item"} href="/saved" onClick={() => onNavigate("saved")} title={collapsed ? "Saved jobs" : undefined}>
             <Bookmark className="nav-icon" size={18} aria-hidden="true" />
             Saved jobs
-          </a>
-          <a className={activePage === "applications" ? "nav-item active" : "nav-item"} href="#jobs" onClick={() => onNavigate("applications")} title={collapsed ? "Applications" : undefined}>
+          </Link>
+          <Link className={activePage === "applications" ? "nav-item active" : "nav-item"} href="/applications" onClick={() => onNavigate("applications")} title={collapsed ? "Applications" : undefined}>
             <Send className="nav-icon" size={18} aria-hidden="true" />
             Applications
-          </a>
-          <button className={activePage === "profile" ? "nav-item profile-nav-item active" : "nav-item profile-nav-item"} title={collapsed ? "My profile" : undefined} onClick={() => onNavigate("profile")}>
+          </Link>
+          <Link href="/profile" className={activePage === "profile" ? "nav-item profile-nav-item active" : "nav-item profile-nav-item"} title={collapsed ? "My profile" : undefined} onClick={() => onNavigate("profile")}>
             <UserRound className="nav-icon" size={18} aria-hidden="true" />
             My profile
-          </button>
+          </Link>
         </nav>
 
         <div className="sidebar-section-label">Your workspace</div>
-        <button className={activePage === "telegram" ? "nav-item telegram-nav-item active" : "nav-item telegram-nav-item"} title={collapsed ? "Telegram connection" : undefined} onClick={() => onNavigate("telegram")}>
+        <Link href="/telegram" className={activePage === "telegram" ? "nav-item telegram-nav-item active" : "nav-item telegram-nav-item"} title={collapsed ? "Telegram connection" : undefined} onClick={() => onNavigate("telegram")}>
           <Activity className="nav-icon" size={18} aria-hidden="true" />
           Telegram connection
           <span className={telegramLinked ? "nav-status-dot linked" : "nav-status-dot"} />
-        </button>
+        </Link>
 
         <div className="sidebar-bottom">
           <div className="profile-row">
