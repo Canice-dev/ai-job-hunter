@@ -155,6 +155,6 @@ Finding relevant roles across job platforms takes repeated searching and manual 
 - Target preferences are extracted as a draft and must be confirmed by the owner.
 - The cover letter follows the same no-fabrication rule as the CV.
 - A one-time linking code is the recommended Telegram account-linking method.
-- AI provider, data-retention terms, file-storage provider, hosting provider, and monthly budget remain to be selected.
+- NVIDIA Build is the configured AI provider; its data-retention terms and monthly budget need review before production use with real profile data. File-storage and hosting providers remain to be selected.
 - Exact scoring weights and layout-preservation tolerance require validation with real examples.
 - API availability, permitted source coverage, rate limits, and Upwork key approval remain external dependencies.

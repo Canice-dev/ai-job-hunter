@@ -86,10 +86,8 @@ def score_job_match(
     if profile_facts is None:
         raise AIProviderError("Confirm your profile before scoring jobs.")
 
-    base_url = os.getenv(
-        "AI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"
-    ).strip().rstrip("/")
-    model = os.getenv("AI_MODEL", "gemini-3.8-flash").strip()
+    base_url = os.getenv("AI_BASE_URL", "https://integrate.api.nvidia.com/v1").strip().rstrip("/")
+    model = os.getenv("AI_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b").strip()
     payload = {
         "model": model,
         "temperature": 0.7,
@@ -174,17 +172,17 @@ def score_job_match(
                 provider_message = None
             if isinstance(provider_message, str) and provider_message.strip():
                 safe_message = re.sub(
-                    r"(?:gsk_[A-Za-z0-9_-]+|AIza[0-9A-Za-z_-]{20,})",
+                    r"(?:nvapi-[A-Za-z0-9_-]+|gsk_[A-Za-z0-9_-]+|AIza[0-9A-Za-z_-]{20,})",
                     "[redacted]",
                     provider_message.strip(),
                 )
                 raise AIProviderError(
-                    f"Gemini returned 403 Forbidden{f' ({provider_code})' if provider_code else ''}: "
+                    f"The configured AI provider returned 403 Forbidden{f' ({provider_code})' if provider_code else ''}: "
                     f"{safe_message[:400]}"
                 ) from exc
             raise AIProviderError(
-                f"Gemini returned 403 Forbidden{f' ({provider_code})' if provider_code else ''}. "
-                "Check the API key, Gemini API access, and project restrictions."
+                f"The configured AI provider returned 403 Forbidden{f' ({provider_code})' if provider_code else ''}. "
+                "Check the API key, provider access, and project restrictions."
             ) from exc
         if exc.code == 429:
             raise AIProviderError("The AI provider rate limit or free quota was reached. Try again later.") from exc

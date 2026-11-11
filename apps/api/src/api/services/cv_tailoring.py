@@ -102,10 +102,8 @@ def tailor_application(
     api_key = os.getenv("AI_API_KEY", "").strip()
     if not api_key:
         raise TailoringProviderError("AI tailoring is not configured. Add AI_API_KEY to apps/api/.env.")
-    base_url = os.getenv(
-        "AI_BASE_URL", "https://generativelanguage.googleapis.com/v1beta/openai/"
-    ).strip().rstrip("/")
-    model = os.getenv("AI_MODEL", "gemini-3.8-flash").strip()
+    base_url = os.getenv("AI_BASE_URL", "https://integrate.api.nvidia.com/v1").strip().rstrip("/")
+    model = os.getenv("AI_MODEL", "nvidia/nemotron-3.5-lightning-30b-a3b").strip()
     profile = _source_context(profile_facts)
     payload = {
         "model": model,

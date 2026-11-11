@@ -3,7 +3,7 @@ import json
 import os
 import ssl
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -14,11 +14,12 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 import truststore
 
-from api.db.models import Job, TelegramLink
+from api.db.models import Job, SearchRun, TelegramLink
 from api.db.session import get_engine
 from api.schemas.jobs import JobPreviewRequest
 from api.services.job_import import build_job, normalize_source_url
 from api.services.remoteok_jobs import RemoteOKError, search_remoteok_jobs
+from api.services.site_jobs import SITE_LOOKBACK_DAYS, SiteSearchError, search_site_jobs
 from api.services.telegram_linking import claim_link_code
 
 TELEGRAM_API = "https://api.telegram.org"
@@ -132,10 +133,7 @@ class TelegramBot:
             elif command == "/remote":
                 self.search_remote_jobs(chat_id, session, argument.strip())
             elif command == "/site":
-                self.send(
-                    chat_id,
-                    "On-site search is not connected yet. Use /remote <keywords> to search Remote OK for remote roles.",
-                )
+                self.search_site_jobs(chat_id, session, argument.strip())
             elif command == "/unlink":
                 session.execute(delete(TelegramLink).where(TelegramLink.owner_key == "owner"))
                 session.commit()
@@ -164,7 +162,7 @@ class TelegramBot:
             "/note <job-id-prefix> | <text or -> — save or clear a private note\n"
             "/import <URL or -> | <title> | <company> | <description> — save a listing\n"
             "/remote <keywords> — search and save matching Remote OK listings\n"
-            "/site — on-site search status\n"
+            "/site [keywords] — search recent on-site IT jobs; without keywords, search general IT roles\n"
             "/unlink — disconnect this Telegram chat"
         )
 
@@ -250,6 +248,126 @@ class TelegramBot:
                 lines.append(
                     f"{str(job.id)[:8]} · {job.title or 'Untitled role'}{company}\n"
                     f"{job.location or 'Remote'} · {job.source_url or ''}"
+                )
+            self.send(chat_id, "\n\n".join(lines))
+
+    def search_site_jobs(self, chat_id: int, session: Session, query: str) -> None:
+        if len(query) > 120:
+            self.send(chat_id, "Keep the /site search under 120 characters.")
+            return
+        search_target = f"'{query}'" if query else "general IT jobs"
+        self.send(
+            chat_id,
+            f"Asking NVIDIA AI to search Tavily for {search_target} in Abuja, Lagos, Port Harcourt, Enugu, and Benue State…",
+        )
+        try:
+            listings, total = search_site_jobs(query)
+        except SiteSearchError as exc:
+            session.add(
+                SearchRun(
+                    source="site",
+                    query=query,
+                    status="failed",
+                    result_count=0,
+                    error=str(exc)[:500],
+                )
+            )
+            session.commit()
+            self.send(chat_id, f"On-site web search failed: {exc}")
+            return
+
+        jobs: list[Job] = []
+        new_count = 0
+        try:
+            for listing in listings:
+                job_request = JobPreviewRequest(
+                    source="web",
+                    source_url=listing.url,
+                    title=listing.title,
+                    location=listing.location,
+                    work_mode="on_site",
+                    description=listing.description,
+                )
+                normalized_url = normalize_source_url(str(job_request.source_url))
+                existing = session.scalar(
+                    select(Job).where(
+                        Job.source == "web",
+                        Job.normalized_source_url == normalized_url,
+                    )
+                )
+                if existing is not None:
+                    jobs.append(existing)
+                    continue
+
+                job = build_job(job_request)
+                session.add(job)
+                session.flush()
+                jobs.append(job)
+                new_count += 1
+
+            session.add(
+                SearchRun(
+                    source="site",
+                    query=query,
+                    status="completed",
+                    result_count=total,
+                )
+            )
+            session.commit()
+        except (SQLAlchemyError, ValidationError):
+            session.rollback()
+            session.add(
+                SearchRun(
+                    source="site",
+                    query=query,
+                    status="failed",
+                    result_count=total,
+                    error="Listings were found, but could not be saved to the tracker.",
+                )
+            )
+            session.commit()
+            self.send(
+                chat_id,
+                "Recent listings were found, but I couldn't save them to your tracker. Try again later.",
+            )
+            return
+
+        if not jobs:
+            search_label = f" for '{query}'" if query else " for general IT jobs"
+            self.send(
+                chat_id,
+                "No dated on-site listings matched"
+                f"{search_label} in the last {SITE_LOOKBACK_DAYS} days. Try different keywords later.",
+            )
+            return
+
+        search_label = f" for '{query}'" if query else " for general IT jobs"
+        result_label = (
+            f"Showing {len(jobs)} of {total} matches."
+            if total > len(jobs)
+            else f"Found {total} matches."
+        )
+        self.send(
+            chat_id,
+            f"Web search{search_label}: {result_label} Added {new_count} new listing(s); "
+            f"{len(jobs) - new_count} were already saved. Confirm the exact work mode and posting date on each source page.",
+        )
+
+        for start in range(0, len(jobs), 4):
+            lines: list[str] = []
+            for job, listing in zip(jobs[start : start + 4], listings[start : start + 4]):
+                company = f" - {job.company}" if job.company else ""
+                posted = listing.published_at.strftime("%Y-%m-%d %H:%M UTC")
+                age = datetime.now(timezone.utc) - listing.published_at
+                freshness = (
+                    "Fresh (under 1 hour)"
+                    if age <= timedelta(hours=1)
+                    else f"Recent (under {SITE_LOOKBACK_DAYS} days)"
+                )
+                lines.append(
+                    f"{str(job.id)[:8]} - {job.title or 'Untitled role'}{company}\n"
+                    f"{job.location or 'Location not specified'} - {freshness}; listed {posted}\n"
+                    f"{job.source_url or ''}"
                 )
             self.send(chat_id, "\n\n".join(lines))
 

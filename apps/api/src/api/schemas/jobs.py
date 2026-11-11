@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 class JobPreviewRequest(BaseModel):
     """A job listing supplied by the user for preview before persistence."""
 
-    source: Literal["linkedin", "upwork", "remoteok", "manual"] = "manual"
+    source: Literal["linkedin", "upwork", "remoteok", "web", "manual"] = "manual"
     source_url: HttpUrl | None = None
     title: str | None = Field(default=None, max_length=300)
     company: str | None = Field(default=None, max_length=300)

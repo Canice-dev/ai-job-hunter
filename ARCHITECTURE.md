@@ -33,7 +33,7 @@ flowchart LR
 | API and workflow | Python 3.14.10, FastAPI 0.162.0 | REST API, Telegram webhook/polling adapter, orchestration, and background worker code. Pin compatible exact dependencies at implementation. |
 | Database | Neon PostgreSQL 18 | Relational source of truth for profiles, jobs, runs, matches, statuses, and file metadata. |
 | File storage | Private S3-compatible object storage | Provider is undecided. Store originals and generated CV/cover-letter files outside the public web root and DB. |
-| AI | Provider-neutral model adapter | Provider/model undecided pending privacy, retention, quality, and cost review. |
+| AI | NVIDIA Build through an OpenAI-compatible model adapter | Used for local scoring and tailoring. Production use with real profile data depends on privacy and retention review; model and cost can be revisited if needed. |
 | Source access | Approved APIs/feeds and manual imports | No LinkedIn or Upwork scraping, session-cookie reuse, or access-control circumvention. |
 
 Versions were checked against the official [Python release page](https://www.python.org/downloads/release/python-31410/), [FastAPI release notes](https://fastapi.tiangolo.com/release-notes/), [Next.js release log](https://nextjs.org/blog), [Next.js support policy](https://nextjs.org/support-policy), and [Neon Postgres version reference](https://api-docs.neon.tech/reference/createproject) on 2026-11-07. Next.js 16.x is Active LTS; Neon lists PostgreSQL 18 as supported.

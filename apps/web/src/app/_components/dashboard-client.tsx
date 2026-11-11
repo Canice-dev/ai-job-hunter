@@ -27,7 +27,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type JobStatus = "new" | "saved" | "dismissed" | "applied";
-type JobSource = "linkedin" | "upwork" | "remoteok" | "manual";
+type JobSource = "linkedin" | "upwork" | "remoteok" | "web" | "manual";
 type DiscoverSource = "linkedin" | "upwork" | "remoteok";
 type WorkMode = "on_site" | "remote" | "hybrid" | "unknown";
 
@@ -1733,6 +1733,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
                     <option value="linkedin">LinkedIn</option>
                     <option value="upwork">Upwork</option>
                     <option value="remoteok">Remote OK</option>
+                    <option value="web">Web search</option>
                   </select>
                 </label>
                 <label>
