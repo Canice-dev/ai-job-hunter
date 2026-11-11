@@ -2343,10 +2343,59 @@ h1 { font-size: clamp(28px, 3vw, 36px); line-height: 1.15; }
 
 .page-discover > .telegram-connection,
 .page-discover > .stats-grid,
-.page-discover > .form-panel,
-.page-discover > .message-banner,
 .page-discover > .jobs-section,
 .page-discover > .page-footer { display: none !important; }
+.source-discovery {
+  padding: 24px;
+  border: 1px solid #e2e3e8;
+  border-radius: 12px;
+  background: #fff;
+}
+.source-discovery-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.source-discovery-heading .eyebrow { margin-bottom: 6px; }
+.source-discovery-heading h2 { margin: 0 0 5px; color: #252525; font-size: 22px; font-weight: 650; letter-spacing: -0.35px; }
+.source-discovery-heading p:last-child { max-width: 610px; margin: 0; color: #707279; font-size: 14px; line-height: 1.5; }
+.source-add-button { display: inline-flex; align-items: center; gap: 8px; min-height: 38px; white-space: nowrap; }
+.source-tabs-root { width: 100%; }
+.source-tabs { display: flex; width: calc(100% + 48px); align-items: center; justify-content: flex-start; gap: 6px; margin: 23px -24px 22px; padding: 0 24px; border: 0; border-bottom: 1px solid #e8e9ec; border-radius: 0; background: transparent; }
+.source-tab-content { width: 100%; }
+.source-tab { position: relative; display: inline-flex; flex: 0 0 auto; align-items: center; gap: 9px; min-height: 46px; padding: 0 13px; border: 0; background: transparent; color: #707279; font: inherit; font-size: 14px; font-weight: 550; cursor: pointer; }
+.source-tab::after { position: absolute; right: 10px; bottom: -1px; left: 10px; height: 2px; background: transparent; content: ""; }
+.source-tab:hover { color: #252525; }
+.source-tab[data-active] { color: #252525; font-weight: 650; }
+.source-tab[data-active]::after { background: #242424; opacity: 1; }
+.source-mark { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 23px; height: 23px; border: 1px solid #e2e3e8; border-radius: 6px; background: #f8f8fa; color: #303138; font-size: 12px; font-weight: 750; line-height: 1; }
+.source-mark-linkedin { color: #526d8a; }
+.source-mark-upwork { color: #4d715d; }
+.source-mark-remoteok { color: #626570; }
+.source-mark-large { width: 38px; height: 38px; border-radius: 9px; font-size: 16px; }
+.source-tab-count { margin-left: 1px; padding: 3px 6px; border-radius: 4px; background: #f1f2f4; color: #6c6f77; font-size: 10px; font-weight: 550; }
+.native-search-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.8fr); gap: 22px; }
+.native-search-main { min-width: 0; padding: 21px; border: 1px solid #e6e7eb; border-radius: 10px; background: #fff; }
+.native-search-intro { display: flex; align-items: flex-start; gap: 13px; }
+.native-search-intro h3, .bring-listing-heading h3 { margin: 0; color: #252525; font-size: 16px; font-weight: 650; line-height: 1.4; }
+.native-search-intro p, .bring-listing-heading p { margin: 4px 0 0; color: #707279; font-size: 13px; line-height: 1.5; }
+.native-search-fields { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 12px; margin-top: 22px; }
+.native-search-field { display: grid; gap: 7px; color: #555860; font-size: 12px; font-weight: 600; }
+.native-search-field input { width: 100%; min-width: 0; height: 42px; padding: 0 12px; border: 1px solid #dfe0e5; border-radius: 7px; background: #fff; color: #252525; font: inherit; font-size: 13px; font-weight: 450; outline: none; }
+.native-search-field input::placeholder { color: #9a9ca4; }
+.native-search-field input:focus { border-color: #6d7079; box-shadow: 0 0 0 3px #e9eaed; }
+.native-search-action { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 41px; margin-top: 17px; padding: 0 15px; border: 0; border-radius: 7px; background: #242424; color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; }
+.native-search-action:hover { background: #3a3a3a; color: #fff; }
+.native-search-note { margin: 12px 0 0; color: #777a82; font-size: 11px; line-height: 1.5; }
+.bring-listing-panel { align-self: stretch; padding: 20px; border: 1px solid #e6e7eb; border-radius: 10px; background: #f8f8fa; }
+.bring-listing-heading { display: flex; align-items: center; gap: 11px; }
+.bring-listing-heading h3 { font-size: 14px; }
+.bring-listing-heading p { font-size: 12px; }
+.bring-listing-icon { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px solid #e2e3e8; border-radius: 8px; background: #fff; color: #42444b; }
+.bring-listing-steps { display: grid; gap: 12px; margin: 21px 0; padding: 0; list-style: none; }
+.bring-listing-steps li { display: flex; align-items: flex-start; gap: 10px; }
+.bring-listing-steps li > span { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: 21px; height: 21px; border-radius: 50%; background: #e9eaed; color: #4c4e55; font-size: 11px; font-weight: 650; }
+.bring-listing-steps p { margin: 2px 0 0; color: #555860; font-size: 12px; line-height: 1.45; }
+.bring-listing-cta { min-height: 37px; font-size: 12px; }
+.bring-listing-footnote { margin: 10px 0 0; color: #777a82; font-size: 11px; line-height: 1.45; }
+.remote-source-panel { padding-top: 2px; }
+.source-discovery :focus-visible { outline: 3px solid #c8cbd2; outline-offset: 2px; }
 .remote-discovery {
   padding: 22px;
   border: 1px solid #e2e3e8;
@@ -2392,6 +2441,18 @@ h1 { font-size: clamp(28px, 3vw, 36px); line-height: 1.15; }
 .remote-empty-state { border: 0; background: transparent; }
 
 @media (max-width: 740px) {
+  .source-discovery { padding: 17px; }
+  .source-discovery-heading { flex-wrap: wrap; gap: 12px; }
+  .source-discovery-heading h2 { font-size: 19px; }
+  .source-add-button { min-height: 36px; margin-left: auto; padding: 0 10px; font-size: 12px; }
+  .source-tabs { width: calc(100% + 34px); gap: 0; margin: 19px -17px 18px; padding: 0 10px; overflow-x: auto; }
+  .source-tab { min-height: 43px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+  .source-tab-count { display: none; }
+  .native-search-layout { grid-template-columns: minmax(0, 1fr); gap: 13px; }
+  .native-search-main, .bring-listing-panel { padding: 16px; }
+  .native-search-fields { grid-template-columns: minmax(0, 1fr); gap: 13px; margin-top: 18px; }
+  .native-search-action { width: 100%; }
+  .bring-listing-steps { margin: 16px 0; }
   .remote-discovery { padding: 16px; }
   .remote-discovery-heading { align-items: flex-start; }
   .remote-discovery-heading h2 { font-size: 18px; }

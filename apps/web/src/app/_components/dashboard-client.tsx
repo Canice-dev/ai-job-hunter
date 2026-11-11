@@ -12,9 +12,11 @@ import {
 import { useRouter } from "next/navigation";
 import ProfileOnboarding from "@/app/profile-onboarding";
 import AppSidebar, { type DashboardPage } from "@/components/app-sidebar";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type JobStatus = "new" | "saved" | "dismissed" | "applied";
 type JobSource = "linkedin" | "upwork" | "remoteok" | "manual";
+type DiscoverSource = "linkedin" | "upwork" | "remoteok";
 type WorkMode = "on_site" | "remote" | "hybrid" | "unknown";
 
 type Job = {
@@ -86,6 +88,27 @@ type RemoteSearchHistoryItem = {
 };
 
 const DASHBOARD_API = "/api/backend";
+
+function platformSearchUrl(
+  source: Exclude<DiscoverSource, "remoteok">,
+  query: string,
+  location: string,
+) {
+  const params = new URLSearchParams();
+  if (query.trim()) {
+    params.set(source === "linkedin" ? "keywords" : "q", query.trim());
+  }
+  if (source === "linkedin" && location.trim()) {
+    params.set("location", location.trim());
+  }
+
+  const path =
+    source === "linkedin"
+      ? "https://www.linkedin.com/jobs/search/"
+      : "https://www.upwork.com/nx/search/jobs/";
+  const search = params.toString();
+  return search ? `${path}?${search}` : path;
+}
 
 const statusLabels: Record<JobStatus, string> = {
   new: "New",
@@ -245,6 +268,10 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
     string | null
   >(null);
   const initialRemoteSearchStarted = useRef(false);
+  const [discoverSource, setDiscoverSource] = useState<DiscoverSource>("linkedin");
+  const [platformQuery, setPlatformQuery] = useState("");
+  const [platformLocation, setPlatformLocation] = useState("");
+  const [importSource, setImportSource] = useState<JobSource>("manual");
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -408,6 +435,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
   useEffect(() => {
     if (
       activePage === "discover" &&
+      discoverSource === "remoteok" &&
       authState === "signed_in" &&
       !remoteLoaded
     ) {
@@ -418,6 +446,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
     }
   }, [
     activePage,
+    discoverSource,
     authState,
     loadRemoteJobs,
     remoteLoaded,
@@ -1019,7 +1048,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
                 {activePage === "home"
                   ? "Keep the roles you find, compare your fit, and track the next step."
                   : activePage === "discover"
-                    ? "Search remote listings from Remote OK and add the ones worth tracking."
+                    ? "Search LinkedIn and Upwork, then keep the opportunities you choose."
                     : activePage === "saved"
                       ? "Roles you saved to revisit and consider applying to."
                       : activePage === "applications"
@@ -1047,10 +1076,117 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
 
           {activePage === "discover" && (
             <section
-              className="remote-discovery"
+              className="source-discovery"
               id="discover"
-              aria-labelledby="remote-discovery-title"
+              aria-labelledby="source-discovery-title"
             >
+              <div className="source-discovery-heading">
+                <div>
+                  <p className="eyebrow">JOB SOURCES</p>
+                  <h2 id="source-discovery-title">Search where the work is</h2>
+                  <p>Search on LinkedIn or Upwork, then bring the listings you choose into your workspace.</p>
+                </div>
+                <button
+                  className="secondary-button source-add-button"
+                  type="button"
+                  onClick={() => {
+                    setImportSource(discoverSource === "remoteok" ? "manual" : discoverSource);
+                    setFormOpen(true);
+                    setNotice("");
+                  }}
+                >
+                  <Plus size={16} aria-hidden="true" /> Add a listing
+                </button>
+              </div>
+
+              <Tabs
+                className="source-tabs-root"
+                value={discoverSource}
+                onValueChange={(value) => setDiscoverSource(value as DiscoverSource)}
+              >
+                <TabsList className="source-tabs" variant="line" aria-label="Choose a job source">
+                  <TabsTrigger className="source-tab" value="linkedin">
+                    <span className="source-mark source-mark-linkedin" aria-hidden="true">in</span>
+                    LinkedIn
+                  </TabsTrigger>
+                  <TabsTrigger className="source-tab" value="upwork">
+                    <span className="source-mark source-mark-upwork" aria-hidden="true">u</span>
+                    Upwork
+                  </TabsTrigger>
+                  <TabsTrigger className="source-tab" value="remoteok">
+                    <span className="source-mark source-mark-remoteok" aria-hidden="true">↗</span>
+                    Remote OK
+                    <span className="source-tab-count">Live feed</span>
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent className="source-tab-content" value={discoverSource}>
+                {discoverSource !== "remoteok" ? (
+                <div
+                  className="native-search-layout"
+                >
+                  <div className="native-search-main">
+                    <div className="native-search-intro">
+                      <div className={`source-mark source-mark-large source-mark-${discoverSource}`} aria-hidden="true">
+                        {discoverSource === "linkedin" ? "in" : "u"}
+                      </div>
+                      <div>
+                        <h3>{discoverSource === "linkedin" ? "Find your next role on LinkedIn" : "Find projects on Upwork"}</h3>
+                        <p>{discoverSource === "linkedin" ? "Set your keywords and location, then continue your search on LinkedIn." : "Search by role or skill on Upwork, then use its filters to narrow the results."}</p>
+                      </div>
+                    </div>
+                    <div className="native-search-fields">
+                      <label className="native-search-field">
+                        <span>{discoverSource === "linkedin" ? "Job title or skills" : "Project keywords or skills"}</span>
+                        <input
+                          value={platformQuery}
+                          onChange={(event) => setPlatformQuery(event.target.value)}
+                          placeholder={discoverSource === "linkedin" ? "e.g. Python developer" : "e.g. Python, FastAPI"}
+                        />
+                      </label>
+                      {discoverSource === "linkedin" && (
+                        <label className="native-search-field">
+                          <span>Location</span>
+                          <input value={platformLocation} onChange={(event) => setPlatformLocation(event.target.value)} placeholder="e.g. Nigeria or Lagos" />
+                        </label>
+                      )}
+                    </div>
+                    <a
+                      className="primary-button native-search-action"
+                      href={platformSearchUrl(discoverSource, platformQuery, platformLocation)}
+                      target="_blank"
+                      rel="noreferrer"
+                    >
+                      <Search size={16} aria-hidden="true" />
+                      Search {discoverSource === "linkedin" ? "LinkedIn" : "Upwork"}
+                      <ExternalLink size={15} aria-hidden="true" />
+                    </a>
+                    <p className="native-search-note">Search opens on {discoverSource === "linkedin" ? "LinkedIn" : "Upwork"}. Job Hunter won’t access your account or collect results automatically.</p>
+                  </div>
+
+                  <aside className="bring-listing-panel" aria-labelledby="bring-listing-title">
+                    <div className="bring-listing-heading">
+                      <span className="bring-listing-icon" aria-hidden="true"><Plus size={17} /></span>
+                      <div>
+                        <h3 id="bring-listing-title">Bring a listing back</h3>
+                        <p>Keep the roles worth a closer look.</p>
+                      </div>
+                    </div>
+                    <ol className="bring-listing-steps">
+                      <li><span>1</span><p>Open a listing you like on the platform.</p></li>
+                      <li><span>2</span><p>Copy its link and job description.</p></li>
+                      <li><span>3</span><p>Add it here to track and review.</p></li>
+                    </ol>
+                    <button className="secondary-button bring-listing-cta" type="button" onClick={() => { setImportSource(discoverSource); setFormOpen(true); setNotice(""); }}>
+                      Add a {discoverSource === "linkedin" ? "LinkedIn" : "Upwork"} listing
+                    </button>
+                    <p className="bring-listing-footnote">You choose what gets added to your jobs.</p>
+                  </aside>
+                </div>
+              ) : (
+                <div
+                  className="remote-source-panel"
+                >
               <div className="remote-discovery-heading">
                 <div>
                   <p className="eyebrow">REMOTE OK</p>
@@ -1244,6 +1380,10 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
                   </div>
                 </>
               )}
+                </div>
+              )}
+                </TabsContent>
+              </Tabs>
             </section>
           )}
 
@@ -1368,7 +1508,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
           )}
 
           {formOpen &&
-            !["discover", "profile", "telegram"].includes(activePage) && (
+            !["profile", "telegram"].includes(activePage) && (
               <section className="form-panel" aria-labelledby="form-title">
                 <div className="form-heading">
                   <div>
@@ -1406,7 +1546,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
                   </label>
                   <label>
                     Source
-                    <select name="source" defaultValue="manual">
+                    <select name="source" value={importSource} onChange={(event) => setImportSource(event.target.value as JobSource)}>
                       <option value="manual">Manual</option>
                       <option value="linkedin">LinkedIn</option>
                       <option value="upwork">Upwork</option>
