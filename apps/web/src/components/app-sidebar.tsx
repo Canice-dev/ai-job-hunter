@@ -6,15 +6,21 @@ import {
   Globe,
   LayoutDashboard,
   LogOut,
-  PanelLeftClose,
-  PanelLeftOpen,
+  PanelLeft,
+  PanelRight,
   Search,
   Send,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
 
-export type DashboardPage = "home" | "discover" | "saved" | "applications" | "profile" | "telegram";
+export type DashboardPage =
+  | "home"
+  | "discover"
+  | "saved"
+  | "applications"
+  | "profile"
+  | "telegram";
 
 type AppSidebarProps = {
   activePage: DashboardPage;
@@ -48,8 +54,12 @@ export default function AppSidebar({
       <aside className="sidebar" aria-hidden={collapsed && !mobileOpen}>
         <div className="sidebar-brand-row">
           <Link className="brand" href="/" aria-label="Job Hunter home">
-            <span className="brand-mark" aria-hidden="true"><span /></span>
-            <span className="brand-name">job<span className="brand-light">hunter</span></span>
+            <span className="brand-mark" aria-hidden="true">
+              <span />
+            </span>
+            <span className="brand-name">
+              job<span className="brand-light">hunter</span>
+            </span>
           </Link>
           <button
             className="sidebar-collapse-button"
@@ -58,43 +68,101 @@ export default function AppSidebar({
             aria-expanded={!collapsed}
             onClick={onCollapse}
           >
-            {collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+            {collapsed ? <PanelRight size={17} /> : <PanelLeft size={17} />}
           </button>
         </div>
 
-        <button className="sidebar-search" type="button" onClick={onSearch} title="Search your jobs">
+        <button
+          className="sidebar-search"
+          type="button"
+          onClick={onSearch}
+          title="Search your jobs"
+          aria-label="Search jobs (Ctrl+K)"
+          aria-keyshortcuts="Control+K Meta+K"
+        >
           <Search size={16} aria-hidden="true" />
           <span>Search jobs</span>
+          <kbd aria-hidden="true">Ctrl K</kbd>
         </button>
         <div className="sidebar-label">Workspace</div>
         <nav className="side-nav" aria-label="Main navigation">
-          <Link className={activePage === "home" ? "nav-item active" : "nav-item"} href="/" onClick={() => onNavigate("home")} title={collapsed ? "Home" : undefined}>
-            <LayoutDashboard className="nav-icon" size={18} aria-hidden="true" />
+          <Link
+            className={activePage === "home" ? "nav-item active" : "nav-item"}
+            href="/"
+            onClick={() => onNavigate("home")}
+            title={collapsed ? "Home" : undefined}
+          >
+            <LayoutDashboard
+              className="nav-icon"
+              size={18}
+              aria-hidden="true"
+            />
             Home
           </Link>
-          <Link className={activePage === "discover" ? "nav-item active" : "nav-item"} href="/discover" onClick={() => onNavigate("discover")} title={collapsed ? "Discover jobs" : undefined}>
+          <Link
+            className={
+              activePage === "discover" ? "nav-item active" : "nav-item"
+            }
+            href="/discover"
+            onClick={() => onNavigate("discover")}
+            title={collapsed ? "Discover jobs" : undefined}
+          >
             <Globe className="nav-icon" size={18} aria-hidden="true" />
             Discover jobs
           </Link>
-          <Link className={activePage === "saved" ? "nav-item active" : "nav-item"} href="/saved" onClick={() => onNavigate("saved")} title={collapsed ? "Saved jobs" : undefined}>
+          <Link
+            className={activePage === "saved" ? "nav-item active" : "nav-item"}
+            href="/saved"
+            onClick={() => onNavigate("saved")}
+            title={collapsed ? "Saved jobs" : undefined}
+          >
             <Bookmark className="nav-icon" size={18} aria-hidden="true" />
             Saved jobs
           </Link>
-          <Link className={activePage === "applications" ? "nav-item active" : "nav-item"} href="/applications" onClick={() => onNavigate("applications")} title={collapsed ? "Applications" : undefined}>
+          <Link
+            className={
+              activePage === "applications" ? "nav-item active" : "nav-item"
+            }
+            href="/applications"
+            onClick={() => onNavigate("applications")}
+            title={collapsed ? "Applications" : undefined}
+          >
             <Send className="nav-icon" size={18} aria-hidden="true" />
             Applications
           </Link>
-          <Link href="/profile" className={activePage === "profile" ? "nav-item profile-nav-item active" : "nav-item profile-nav-item"} title={collapsed ? "My profile" : undefined} onClick={() => onNavigate("profile")}>
+          <Link
+            href="/profile"
+            className={
+              activePage === "profile"
+                ? "nav-item profile-nav-item active"
+                : "nav-item profile-nav-item"
+            }
+            title={collapsed ? "My profile" : undefined}
+            onClick={() => onNavigate("profile")}
+          >
             <UserRound className="nav-icon" size={18} aria-hidden="true" />
             My profile
           </Link>
         </nav>
 
         <div className="sidebar-section-label">Your workspace</div>
-        <Link href="/telegram" className={activePage === "telegram" ? "nav-item telegram-nav-item active" : "nav-item telegram-nav-item"} title={collapsed ? "Telegram connection" : undefined} onClick={() => onNavigate("telegram")}>
+        <Link
+          href="/telegram"
+          className={
+            activePage === "telegram"
+              ? "nav-item telegram-nav-item active"
+              : "nav-item telegram-nav-item"
+          }
+          title={collapsed ? "Telegram connection" : undefined}
+          onClick={() => onNavigate("telegram")}
+        >
           <Activity className="nav-icon" size={18} aria-hidden="true" />
           Telegram connection
-          <span className={telegramLinked ? "nav-status-dot linked" : "nav-status-dot"} />
+          <span
+            className={
+              telegramLinked ? "nav-status-dot linked" : "nav-status-dot"
+            }
+          />
         </Link>
 
         <div className="sidebar-bottom">
@@ -104,11 +172,24 @@ export default function AppSidebar({
               <strong>{ownerEmail}</strong>
               <span>Personal account</span>
             </div>
-            <button className="sign-out-button" onClick={onSignOut} aria-label="Sign out" title="Sign out"><LogOut size={16} /></button>
+            <button
+              className="sign-out-button"
+              onClick={onSignOut}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut size={16} />
+            </button>
           </div>
         </div>
       </aside>
-      {mobileOpen && <button className="sidebar-backdrop" aria-label="Close navigation" onClick={onCloseMobile} />}
+      {mobileOpen && (
+        <button
+          className="sidebar-backdrop"
+          aria-label="Close navigation"
+          onClick={onCloseMobile}
+        />
+      )}
     </>
   );
 }

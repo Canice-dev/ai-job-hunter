@@ -1,17 +1,29 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  Bookmark,
+  BriefcaseBusiness,
   ExternalLink,
   Menu,
-  PanelLeftOpen,
+  PanelRight,
   Plus,
   Search,
+  Send,
+  TrendingUp,
   X,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import ProfileOnboarding from "@/app/profile-onboarding";
 import AppSidebar, { type DashboardPage } from "@/components/app-sidebar";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 type JobStatus = "new" | "saved" | "dismissed" | "applied";
@@ -228,6 +240,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
     page === "saved" ? "saved" : page === "applications" ? "applied" : "all",
   );
   const [search, setSearch] = useState("");
+  const [searchDialogOpen, setSearchDialogOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
@@ -268,10 +281,24 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
     string | null
   >(null);
   const initialRemoteSearchStarted = useRef(false);
-  const [discoverSource, setDiscoverSource] = useState<DiscoverSource>("linkedin");
+  const [discoverSource, setDiscoverSource] =
+    useState<DiscoverSource>("linkedin");
   const [platformQuery, setPlatformQuery] = useState("");
   const [platformLocation, setPlatformLocation] = useState("");
   const [importSource, setImportSource] = useState<JobSource>("manual");
+
+  useEffect(() => {
+    function handleSearchShortcut(event: KeyboardEvent) {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSearchDialogOpen(true);
+        setMobileSidebarOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", handleSearchShortcut);
+    return () => window.removeEventListener("keydown", handleSearchShortcut);
+  }, []);
 
   const loadJobs = useCallback(async () => {
     setLoading(true);
@@ -386,45 +413,50 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
       );
     } catch (error) {
       setRemoteHistoryError(
-        error instanceof Error ? error.message : "Could not load recent searches.",
+        error instanceof Error
+          ? error.message
+          : "Could not load recent searches.",
       );
     }
   }, []);
 
-  const loadRemoteJobs = useCallback(async (query = "") => {
-    setRemoteLoading(true);
-    setRemoteError("");
-    try {
-      const response = await fetch(
-        `${DASHBOARD_API}/jobs/discover/remoteok/search`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ query }),
-        },
-      );
-      if (!response.ok) throw new Error(await responseError(response));
-      const result = (await response.json()) as {
-        jobs: RemoteOKListing[];
-        count: number;
-      };
-      setRemoteJobs(result.jobs);
-      setRemoteJobCount(result.count);
-      setRemoteLoaded(true);
-    } catch (error) {
-      setRemoteError(
-        error instanceof TypeError
-          ? "Could not reach the API. Make sure the Python server is running, then try again."
-          : error instanceof Error
-            ? error.message
-            : "Could not load Remote OK jobs. Please try again.",
-      );
-    } finally {
-      await loadRemoteSearchHistory();
-      setRemoteLoaded(true);
-      setRemoteLoading(false);
-    }
-  }, [loadRemoteSearchHistory]);
+  const loadRemoteJobs = useCallback(
+    async (query = "") => {
+      setRemoteLoading(true);
+      setRemoteError("");
+      try {
+        const response = await fetch(
+          `${DASHBOARD_API}/jobs/discover/remoteok/search`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query }),
+          },
+        );
+        if (!response.ok) throw new Error(await responseError(response));
+        const result = (await response.json()) as {
+          jobs: RemoteOKListing[];
+          count: number;
+        };
+        setRemoteJobs(result.jobs);
+        setRemoteJobCount(result.count);
+        setRemoteLoaded(true);
+      } catch (error) {
+        setRemoteError(
+          error instanceof TypeError
+            ? "Could not reach the API. Make sure the Python server is running, then try again."
+            : error instanceof Error
+              ? error.message
+              : "Could not load Remote OK jobs. Please try again.",
+        );
+      } finally {
+        await loadRemoteSearchHistory();
+        setRemoteLoaded(true);
+        setRemoteLoading(false);
+      }
+    },
+    [loadRemoteSearchHistory],
+  );
 
   useEffect(() => {
     setFilter(
@@ -526,6 +558,23 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
       return matchesFilter && matchesSearch;
     });
   }, [filter, jobs, search]);
+
+  const searchDialogResults = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return [];
+    return jobs
+      .filter((job) =>
+        [job.title, job.company, job.location, job.description, job.source]
+          .filter(Boolean)
+          .some((value) => value!.toLowerCase().includes(query)),
+      )
+      .slice(0, 8);
+  }, [jobs, search]);
+
+  function openSearchDialog() {
+    setSearchDialogOpen(true);
+    setMobileSidebarOpen(false);
+  }
 
   async function importJob(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -972,9 +1021,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
           if (page === "saved") setFilter("saved");
           if (page === "applications") setFilter("applied");
         }}
-        onSearch={() =>
-          document.querySelector<HTMLInputElement>(".search-box input")?.focus()
-        }
+        onSearch={openSearchDialog}
         onSignOut={() => void signOut()}
         onCloseMobile={() => setMobileSidebarOpen(false)}
       />
@@ -986,7 +1033,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
             aria-label="Expand sidebar"
             onClick={() => setSidebarCollapsed(false)}
           >
-            <PanelLeftOpen size={18} />
+            <PanelRight size={18} />
           </button>
           <button
             className="mobile-menu-button"
@@ -1006,11 +1053,8 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
             className="topbar-search-button"
             type="button"
             aria-label="Search jobs"
-            onClick={() =>
-              document
-                .querySelector<HTMLInputElement>(".search-box input")
-                ?.focus()
-            }
+            aria-keyshortcuts="Control+K Meta+K"
+            onClick={openSearchDialog}
           >
             <Search size={18} />
           </button>
@@ -1084,13 +1128,18 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
                 <div>
                   <p className="eyebrow">JOB SOURCES</p>
                   <h2 id="source-discovery-title">Search where the work is</h2>
-                  <p>Search on LinkedIn or Upwork, then bring the listings you choose into your workspace.</p>
+                  <p>
+                    Search on LinkedIn or Upwork, then bring the listings you
+                    choose into your workspace.
+                  </p>
                 </div>
                 <button
                   className="secondary-button source-add-button"
                   type="button"
                   onClick={() => {
-                    setImportSource(discoverSource === "remoteok" ? "manual" : discoverSource);
+                    setImportSource(
+                      discoverSource === "remoteok" ? "manual" : discoverSource,
+                    );
                     setFormOpen(true);
                     setNotice("");
                   }}
@@ -1102,286 +1151,414 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
               <Tabs
                 className="source-tabs-root"
                 value={discoverSource}
-                onValueChange={(value) => setDiscoverSource(value as DiscoverSource)}
+                onValueChange={(value) =>
+                  setDiscoverSource(value as DiscoverSource)
+                }
               >
-                <TabsList className="source-tabs" variant="line" aria-label="Choose a job source">
+                <TabsList
+                  className="source-tabs"
+                  variant="line"
+                  aria-label="Choose a job source"
+                >
                   <TabsTrigger className="source-tab" value="linkedin">
-                    <span className="source-mark source-mark-linkedin" aria-hidden="true">in</span>
+                    <span
+                      className="source-mark source-mark-linkedin"
+                      aria-hidden="true"
+                    >
+                      in
+                    </span>
                     LinkedIn
                   </TabsTrigger>
                   <TabsTrigger className="source-tab" value="upwork">
-                    <span className="source-mark source-mark-upwork" aria-hidden="true">u</span>
+                    <span
+                      className="source-mark source-mark-upwork"
+                      aria-hidden="true"
+                    >
+                      u
+                    </span>
                     Upwork
                   </TabsTrigger>
                   <TabsTrigger className="source-tab" value="remoteok">
-                    <span className="source-mark source-mark-remoteok" aria-hidden="true">↗</span>
+                    <span
+                      className="source-mark source-mark-remoteok"
+                      aria-hidden="true"
+                    >
+                      ↗
+                    </span>
                     Remote OK
                     <span className="source-tab-count">Live feed</span>
                   </TabsTrigger>
                 </TabsList>
 
-                <TabsContent className="source-tab-content" value={discoverSource}>
-                {discoverSource !== "remoteok" ? (
-                <div
-                  className="native-search-layout"
+                <TabsContent
+                  className="source-tab-content"
+                  value={discoverSource}
                 >
-                  <div className="native-search-main">
-                    <div className="native-search-intro">
-                      <div className={`source-mark source-mark-large source-mark-${discoverSource}`} aria-hidden="true">
-                        {discoverSource === "linkedin" ? "in" : "u"}
-                      </div>
-                      <div>
-                        <h3>{discoverSource === "linkedin" ? "Find your next role on LinkedIn" : "Find projects on Upwork"}</h3>
-                        <p>{discoverSource === "linkedin" ? "Set your keywords and location, then continue your search on LinkedIn." : "Search by role or skill on Upwork, then use its filters to narrow the results."}</p>
-                      </div>
-                    </div>
-                    <div className="native-search-fields">
-                      <label className="native-search-field">
-                        <span>{discoverSource === "linkedin" ? "Job title or skills" : "Project keywords or skills"}</span>
-                        <input
-                          value={platformQuery}
-                          onChange={(event) => setPlatformQuery(event.target.value)}
-                          placeholder={discoverSource === "linkedin" ? "e.g. Python developer" : "e.g. Python, FastAPI"}
-                        />
-                      </label>
-                      {discoverSource === "linkedin" && (
-                        <label className="native-search-field">
-                          <span>Location</span>
-                          <input value={platformLocation} onChange={(event) => setPlatformLocation(event.target.value)} placeholder="e.g. Nigeria or Lagos" />
-                        </label>
-                      )}
-                    </div>
-                    <a
-                      className="primary-button native-search-action"
-                      href={platformSearchUrl(discoverSource, platformQuery, platformLocation)}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <Search size={16} aria-hidden="true" />
-                      Search {discoverSource === "linkedin" ? "LinkedIn" : "Upwork"}
-                      <ExternalLink size={15} aria-hidden="true" />
-                    </a>
-                    <p className="native-search-note">Search opens on {discoverSource === "linkedin" ? "LinkedIn" : "Upwork"}. Job Hunter won’t access your account or collect results automatically.</p>
-                  </div>
-
-                  <aside className="bring-listing-panel" aria-labelledby="bring-listing-title">
-                    <div className="bring-listing-heading">
-                      <span className="bring-listing-icon" aria-hidden="true"><Plus size={17} /></span>
-                      <div>
-                        <h3 id="bring-listing-title">Bring a listing back</h3>
-                        <p>Keep the roles worth a closer look.</p>
-                      </div>
-                    </div>
-                    <ol className="bring-listing-steps">
-                      <li><span>1</span><p>Open a listing you like on the platform.</p></li>
-                      <li><span>2</span><p>Copy its link and job description.</p></li>
-                      <li><span>3</span><p>Add it here to track and review.</p></li>
-                    </ol>
-                    <button className="secondary-button bring-listing-cta" type="button" onClick={() => { setImportSource(discoverSource); setFormOpen(true); setNotice(""); }}>
-                      Add a {discoverSource === "linkedin" ? "LinkedIn" : "Upwork"} listing
-                    </button>
-                    <p className="bring-listing-footnote">You choose what gets added to your jobs.</p>
-                  </aside>
-                </div>
-              ) : (
-                <div
-                  className="remote-source-panel"
-                >
-              <div className="remote-discovery-heading">
-                <div>
-                  <p className="eyebrow">REMOTE OK</p>
-                  <h2 id="remote-discovery-title">Remote opportunities</h2>
-                  <p>
-                    Browse remote roles, then add selected listings to your
-                    tracker.
-                  </p>
-                </div>
-                <button
-                  className="refresh-button"
-                  type="button"
-                  disabled={remoteLoading}
-                  onClick={() => void loadRemoteJobs(remoteQuery)}
-                >
-                  <span
-                    className={
-                      remoteLoading
-                        ? "refresh-glyph is-loading"
-                        : "refresh-glyph"
-                    }
-                    aria-hidden="true"
-                  >
-                    ↻
-                  </span>
-                  Refresh
-                </button>
-              </div>
-
-              <form className="remote-search-form" onSubmit={searchRemoteJobs}>
-                <label className="search-box">
-                  <Search
-                    className="search-icon"
-                    size={16}
-                    aria-hidden="true"
-                  />
-                  <span className="sr-only">Search Remote OK jobs</span>
-                  <input
-                    value={remoteQuery}
-                    onChange={(event) => setRemoteQuery(event.target.value)}
-                    placeholder="Search title, company, skills"
-                  />
-                </label>
-                <button
-                  className="primary-button"
-                  type="submit"
-                  disabled={remoteLoading}
-                >
-                  Search jobs
-                </button>
-              </form>
-
-              <section className="remote-search-history" aria-labelledby="recent-searches-title">
-                <div className="remote-search-history-heading">
-                  <h3 id="recent-searches-title">Recent searches</h3>
-                  <span>Last 10</span>
-                </div>
-                {remoteHistoryError ? (
-                  <p className="remote-history-message" role="status">
-                    Search history is unavailable. Apply the latest API migration and try again.
-                  </p>
-                ) : remoteSearchHistory.length === 0 ? (
-                  <p className="remote-history-message">Your searches will appear here.</p>
-                ) : (
-                  <ul className="remote-search-history-list">
-                    {remoteSearchHistory.map((item) => (
-                      <li key={item.id}>
-                        <div className="remote-search-history-query">
-                          <strong>{item.query || "All remote jobs"}</strong>
-                          <span>
-                            {item.status === "completed"
-                              ? `${item.result_count} matching ${item.result_count === 1 ? "listing" : "listings"}`
-                              : "Search failed"}
-                          </span>
+                  {discoverSource !== "remoteok" ? (
+                    <div className="native-search-layout">
+                      <div className="native-search-main">
+                        <div className="native-search-intro">
+                          <div
+                            className={`source-mark source-mark-large source-mark-${discoverSource}`}
+                            aria-hidden="true"
+                          >
+                            {discoverSource === "linkedin" ? "in" : "u"}
+                          </div>
+                          <div>
+                            <h3>
+                              {discoverSource === "linkedin"
+                                ? "Find your next role on LinkedIn"
+                                : "Find projects on Upwork"}
+                            </h3>
+                            <p>
+                              {discoverSource === "linkedin"
+                                ? "Set your keywords and location, then continue your search on LinkedIn."
+                                : "Search by role or skill on Upwork, then use its filters to narrow the results."}
+                            </p>
+                          </div>
                         </div>
-                        <time dateTime={item.created_at}>{dateTimeLabel(item.created_at)}</time>
+                        <div className="native-search-fields">
+                          <label className="native-search-field">
+                            <span>
+                              {discoverSource === "linkedin"
+                                ? "Job title or skills"
+                                : "Project keywords or skills"}
+                            </span>
+                            <input
+                              value={platformQuery}
+                              onChange={(event) =>
+                                setPlatformQuery(event.target.value)
+                              }
+                              placeholder={
+                                discoverSource === "linkedin"
+                                  ? "e.g. Python developer"
+                                  : "e.g. Python, FastAPI"
+                              }
+                            />
+                          </label>
+                          {discoverSource === "linkedin" && (
+                            <label className="native-search-field">
+                              <span>Location</span>
+                              <input
+                                value={platformLocation}
+                                onChange={(event) =>
+                                  setPlatformLocation(event.target.value)
+                                }
+                                placeholder="e.g. Nigeria or Lagos"
+                              />
+                            </label>
+                          )}
+                        </div>
+                        <a
+                          className="primary-button native-search-action"
+                          href={platformSearchUrl(
+                            discoverSource,
+                            platformQuery,
+                            platformLocation,
+                          )}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <Search size={16} aria-hidden="true" />
+                          Search{" "}
+                          {discoverSource === "linkedin"
+                            ? "LinkedIn"
+                            : "Upwork"}
+                          <ExternalLink size={15} aria-hidden="true" />
+                        </a>
+                        <p className="native-search-note">
+                          Search opens on{" "}
+                          {discoverSource === "linkedin"
+                            ? "LinkedIn"
+                            : "Upwork"}
+                          . Job Hunter won’t access your account or collect
+                          results automatically.
+                        </p>
+                      </div>
+
+                      <aside
+                        className="bring-listing-panel"
+                        aria-labelledby="bring-listing-title"
+                      >
+                        <div className="bring-listing-heading">
+                          <span
+                            className="bring-listing-icon"
+                            aria-hidden="true"
+                          >
+                            <Plus size={17} />
+                          </span>
+                          <div>
+                            <h3 id="bring-listing-title">
+                              Bring a listing back
+                            </h3>
+                            <p>Keep the roles worth a closer look.</p>
+                          </div>
+                        </div>
+                        <ol className="bring-listing-steps">
+                          <li>
+                            <span>1</span>
+                            <p>Open a listing you like on the platform.</p>
+                          </li>
+                          <li>
+                            <span>2</span>
+                            <p>Copy its link and job description.</p>
+                          </li>
+                          <li>
+                            <span>3</span>
+                            <p>Add it here to track and review.</p>
+                          </li>
+                        </ol>
                         <button
-                          className="text-button"
+                          className="secondary-button bring-listing-cta"
                           type="button"
-                          disabled={remoteLoading}
                           onClick={() => {
-                            setRemoteQuery(item.query);
-                            void loadRemoteJobs(item.query);
+                            setImportSource(discoverSource);
+                            setFormOpen(true);
+                            setNotice("");
                           }}
                         >
-                          Run again
+                          Add a{" "}
+                          {discoverSource === "linkedin"
+                            ? "LinkedIn"
+                            : "Upwork"}{" "}
+                          listing
                         </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-
-              <p className="remote-attribution">
-                Listings from{" "}
-                <a href="https://remoteok.com" target="_blank" rel="noreferrer">
-                  Remote OK
-                </a>
-                . Check location eligibility and details on the original
-                listing.
-              </p>
-
-              {remoteError && (
-                <div className="list-message remote-error" role="alert">
-                  <span>{remoteError}</span>
-                  <button
-                    type="button"
-                    onClick={() => void loadRemoteJobs(remoteQuery)}
-                  >
-                    Try again
-                  </button>
-                </div>
-              )}
-              {remoteImportError && (
-                <div className="list-message remote-error" role="alert">
-                  {remoteImportError}
-                </div>
-              )}
-              {remoteError ? null : remoteLoading ? (
-                <div className="list-message">
-                  <span className="loading-ring" />
-                  Loading Remote OK jobs…
-                </div>
-              ) : remoteJobs.length === 0 && !remoteError ? (
-                <div className="empty-state remote-empty-state">
-                  <h3>No Remote OK jobs match this search</h3>
-                  <p>Try a broader title, company, or skill.</p>
-                </div>
-              ) : (
-                <>
-                  <p className="remote-result-count">
-                    Showing {remoteJobs.length} of {remoteJobCount} matching
-                    listings
-                  </p>
-                  <div className="remote-job-list">
-                    {remoteJobs.map((listing) => {
-                      const alreadyAdded = jobs.some(
-                        (job) =>
-                          job.source === "remoteok" &&
-                          job.source_url === listing.url,
-                      );
-                      return (
-                        <article className="remote-job-card" key={listing.id}>
-                          <div className="remote-job-main">
-                            <div className="remote-job-title-row">
-                              <h3>{listing.title}</h3>
-                              <a
-                                href={listing.url}
-                                target="_blank"
-                                rel="noreferrer"
-                                aria-label={`View ${listing.title} on Remote OK`}
-                              >
-                                <ExternalLink size={16} aria-hidden="true" />
-                              </a>
-                            </div>
-                            <p className="remote-job-company">
-                              {listing.company} <span>·</span>{" "}
-                              {listing.location}
-                            </p>
-                            {listing.published_at && (
-                              <p className="remote-job-date">
-                                Posted {dateLabel(listing.published_at)}
-                              </p>
-                            )}
-                            <p className="remote-job-description">
-                              {listing.description}
-                            </p>
-                            <div className="remote-job-tags">
-                              {listing.tags.slice(0, 6).map((tag, index) => (
-                                <span key={`${tag}-${index}`}>{tag}</span>
-                              ))}
-                            </div>
-                          </div>
-                          <button
-                            className="secondary-button remote-import-button"
-                            type="button"
-                            disabled={
-                              alreadyAdded || importingRemoteJobId !== null
+                        <p className="bring-listing-footnote">
+                          You choose what gets added to your jobs.
+                        </p>
+                      </aside>
+                    </div>
+                  ) : (
+                    <div className="remote-source-panel">
+                      <div className="remote-discovery-heading">
+                        <div>
+                          <p className="eyebrow">REMOTE OK</p>
+                          <h2 id="remote-discovery-title">
+                            Remote opportunities
+                          </h2>
+                          <p>
+                            Browse remote roles, then add selected listings to
+                            your tracker.
+                          </p>
+                        </div>
+                        <button
+                          className="refresh-button"
+                          type="button"
+                          disabled={remoteLoading}
+                          onClick={() => void loadRemoteJobs(remoteQuery)}
+                        >
+                          <span
+                            className={
+                              remoteLoading
+                                ? "refresh-glyph is-loading"
+                                : "refresh-glyph"
                             }
-                            onClick={() => void importRemoteJob(listing)}
+                            aria-hidden="true"
                           >
-                            {importingRemoteJobId === listing.id
-                              ? "Adding…"
-                              : alreadyAdded
-                                ? "In your jobs"
-                                : "Add to jobs"}
+                            ↻
+                          </span>
+                          Refresh
+                        </button>
+                      </div>
+
+                      <form
+                        className="remote-search-form"
+                        onSubmit={searchRemoteJobs}
+                      >
+                        <label className="search-box">
+                          <Search
+                            className="search-icon"
+                            size={16}
+                            aria-hidden="true"
+                          />
+                          <span className="sr-only">Search Remote OK jobs</span>
+                          <input
+                            value={remoteQuery}
+                            onChange={(event) =>
+                              setRemoteQuery(event.target.value)
+                            }
+                            placeholder="Search title, company, skills"
+                          />
+                        </label>
+                        <button
+                          className="primary-button"
+                          type="submit"
+                          disabled={remoteLoading}
+                        >
+                          Search jobs
+                        </button>
+                      </form>
+
+                      <section
+                        className="remote-search-history"
+                        aria-labelledby="recent-searches-title"
+                      >
+                        <div className="remote-search-history-heading">
+                          <h3 id="recent-searches-title">Recent searches</h3>
+                          <span>Last 10</span>
+                        </div>
+                        {remoteHistoryError ? (
+                          <p className="remote-history-message" role="status">
+                            Search history is unavailable. Apply the latest API
+                            migration and try again.
+                          </p>
+                        ) : remoteSearchHistory.length === 0 ? (
+                          <p className="remote-history-message">
+                            Your searches will appear here.
+                          </p>
+                        ) : (
+                          <ul className="remote-search-history-list">
+                            {remoteSearchHistory.map((item) => (
+                              <li key={item.id}>
+                                <div className="remote-search-history-query">
+                                  <strong>
+                                    {item.query || "All remote jobs"}
+                                  </strong>
+                                  <span>
+                                    {item.status === "completed"
+                                      ? `${item.result_count} matching ${item.result_count === 1 ? "listing" : "listings"}`
+                                      : "Search failed"}
+                                  </span>
+                                </div>
+                                <time dateTime={item.created_at}>
+                                  {dateTimeLabel(item.created_at)}
+                                </time>
+                                <button
+                                  className="text-button"
+                                  type="button"
+                                  disabled={remoteLoading}
+                                  onClick={() => {
+                                    setRemoteQuery(item.query);
+                                    void loadRemoteJobs(item.query);
+                                  }}
+                                >
+                                  Run again
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                      </section>
+
+                      <p className="remote-attribution">
+                        Listings from{" "}
+                        <a
+                          href="https://remoteok.com"
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Remote OK
+                        </a>
+                        . Check location eligibility and details on the original
+                        listing.
+                      </p>
+
+                      {remoteError && (
+                        <div className="list-message remote-error" role="alert">
+                          <span>{remoteError}</span>
+                          <button
+                            type="button"
+                            onClick={() => void loadRemoteJobs(remoteQuery)}
+                          >
+                            Try again
                           </button>
-                        </article>
-                      );
-                    })}
-                  </div>
-                </>
-              )}
-                </div>
-              )}
+                        </div>
+                      )}
+                      {remoteImportError && (
+                        <div className="list-message remote-error" role="alert">
+                          {remoteImportError}
+                        </div>
+                      )}
+                      {remoteError ? null : remoteLoading ? (
+                        <div className="list-message">
+                          <span className="loading-ring" />
+                          Loading Remote OK jobs…
+                        </div>
+                      ) : remoteJobs.length === 0 && !remoteError ? (
+                        <div className="empty-state remote-empty-state">
+                          <h3>No Remote OK jobs match this search</h3>
+                          <p>Try a broader title, company, or skill.</p>
+                        </div>
+                      ) : (
+                        <>
+                          <p className="remote-result-count">
+                            Showing {remoteJobs.length} of {remoteJobCount}{" "}
+                            matching listings
+                          </p>
+                          <div className="remote-job-list">
+                            {remoteJobs.map((listing) => {
+                              const alreadyAdded = jobs.some(
+                                (job) =>
+                                  job.source === "remoteok" &&
+                                  job.source_url === listing.url,
+                              );
+                              return (
+                                <article
+                                  className="remote-job-card"
+                                  key={listing.id}
+                                >
+                                  <div className="remote-job-main">
+                                    <div className="remote-job-title-row">
+                                      <h3>{listing.title}</h3>
+                                      <a
+                                        href={listing.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        aria-label={`View ${listing.title} on Remote OK`}
+                                      >
+                                        <ExternalLink
+                                          size={16}
+                                          aria-hidden="true"
+                                        />
+                                      </a>
+                                    </div>
+                                    <p className="remote-job-company">
+                                      {listing.company} <span>·</span>{" "}
+                                      {listing.location}
+                                    </p>
+                                    {listing.published_at && (
+                                      <p className="remote-job-date">
+                                        Posted {dateLabel(listing.published_at)}
+                                      </p>
+                                    )}
+                                    <p className="remote-job-description">
+                                      {listing.description}
+                                    </p>
+                                    <div className="remote-job-tags">
+                                      {listing.tags
+                                        .slice(0, 6)
+                                        .map((tag, index) => (
+                                          <span key={`${tag}-${index}`}>
+                                            {tag}
+                                          </span>
+                                        ))}
+                                    </div>
+                                  </div>
+                                  <button
+                                    className="secondary-button remote-import-button"
+                                    type="button"
+                                    disabled={
+                                      alreadyAdded ||
+                                      importingRemoteJobId !== null
+                                    }
+                                    onClick={() =>
+                                      void importRemoteJob(listing)
+                                    }
+                                  >
+                                    {importingRemoteJobId === listing.id
+                                      ? "Adding…"
+                                      : alreadyAdded
+                                        ? "In your jobs"
+                                        : "Add to jobs"}
+                                  </button>
+                                </article>
+                              );
+                            })}
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </TabsContent>
               </Tabs>
             </section>
@@ -1468,7 +1645,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
                 <div className="stat-top">
                   <span>Total tracked</span>
                   <span className="stat-icon total-icon" aria-hidden="true">
-                    ↗
+                    <TrendingUp size={20} strokeWidth={1.8} />
                   </span>
                 </div>
                 <strong>{counts.total}</strong>
@@ -1478,7 +1655,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
                 <div className="stat-top">
                   <span>Active roles</span>
                   <span className="stat-icon active-icon" aria-hidden="true">
-                    ◌
+                    <BriefcaseBusiness size={20} strokeWidth={1.8} />
                   </span>
                 </div>
                 <strong>{counts.active}</strong>
@@ -1488,7 +1665,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
                 <div className="stat-top">
                   <span>Saved</span>
                   <span className="stat-icon saved-icon" aria-hidden="true">
-                    ♡
+                    <Bookmark size={20} strokeWidth={1.8} />
                   </span>
                 </div>
                 <strong>{counts.saved}</strong>
@@ -1498,7 +1675,7 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
                 <div className="stat-top">
                   <span>Applied</span>
                   <span className="stat-icon applied-icon" aria-hidden="true">
-                    ↗
+                    <Send size={20} strokeWidth={1.8} />
                   </span>
                 </div>
                 <strong>{counts.applied}</strong>
@@ -1507,107 +1684,112 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
             </section>
           )}
 
-          {formOpen &&
-            !["profile", "telegram"].includes(activePage) && (
-              <section className="form-panel" aria-labelledby="form-title">
-                <div className="form-heading">
-                  <div>
-                    <p className="eyebrow">MANUAL IMPORT</p>
-                    <h2 id="form-title">Add a job to your list</h2>
-                    <p>
-                      Paste the details you want to keep. We won’t fetch or
-                      submit anything.
-                    </p>
-                  </div>
-                  <button
-                    className="icon-button close-button"
-                    onClick={() => setFormOpen(false)}
-                    aria-label="Close form"
+          {formOpen && !["profile", "telegram"].includes(activePage) && (
+            <section className="form-panel" aria-labelledby="form-title">
+              <div className="form-heading">
+                <div>
+                  <p className="eyebrow">MANUAL IMPORT</p>
+                  <h2 id="form-title">Add a job to your list</h2>
+                  <p>
+                    Paste the details you want to keep. We won’t fetch or submit
+                    anything.
+                  </p>
+                </div>
+                <button
+                  className="icon-button close-button"
+                  onClick={() => setFormOpen(false)}
+                  aria-label="Close form"
+                >
+                  ×
+                </button>
+              </div>
+              <form className="job-form" onSubmit={importJob}>
+                <label>
+                  Job title
+                  <input
+                    name="title"
+                    placeholder="e.g. Backend Engineer"
+                    maxLength={300}
+                  />
+                </label>
+                <label>
+                  Company
+                  <input
+                    name="company"
+                    placeholder="e.g. Acme Inc."
+                    maxLength={300}
+                  />
+                </label>
+                <label>
+                  Source
+                  <select
+                    name="source"
+                    value={importSource}
+                    onChange={(event) =>
+                      setImportSource(event.target.value as JobSource)
+                    }
                   >
-                    ×
+                    <option value="manual">Manual</option>
+                    <option value="linkedin">LinkedIn</option>
+                    <option value="upwork">Upwork</option>
+                    <option value="remoteok">Remote OK</option>
+                  </select>
+                </label>
+                <label>
+                  Work mode
+                  <select name="work_mode" defaultValue="unknown">
+                    <option value="unknown">Not specified</option>
+                    <option value="remote">Remote</option>
+                    <option value="on_site">On-site</option>
+                    <option value="hybrid">Hybrid</option>
+                  </select>
+                </label>
+                <label>
+                  Location
+                  <input
+                    name="location"
+                    placeholder="e.g. Lagos or Remote"
+                    maxLength={300}
+                  />
+                </label>
+                <label>
+                  Job listing URL
+                  <input
+                    name="source_url"
+                    type="url"
+                    placeholder="https://..."
+                  />
+                </label>
+                <label className="description-field">
+                  Job description
+                  <textarea
+                    name="description"
+                    placeholder="Paste the job description here…"
+                    required
+                    maxLength={50000}
+                    rows={5}
+                  />
+                </label>
+                <div className="form-actions">
+                  <span>Required: job description</span>
+                  <button
+                    className="primary-button"
+                    type="submit"
+                    disabled={submitting}
+                  >
+                    {submitting ? (
+                      <>
+                        <span className="button-spinner" />
+                        Adding…
+                      </>
+                    ) : (
+                      "Add job"
+                    )}
                   </button>
                 </div>
-                <form className="job-form" onSubmit={importJob}>
-                  <label>
-                    Job title
-                    <input
-                      name="title"
-                      placeholder="e.g. Backend Engineer"
-                      maxLength={300}
-                    />
-                  </label>
-                  <label>
-                    Company
-                    <input
-                      name="company"
-                      placeholder="e.g. Acme Inc."
-                      maxLength={300}
-                    />
-                  </label>
-                  <label>
-                    Source
-                    <select name="source" value={importSource} onChange={(event) => setImportSource(event.target.value as JobSource)}>
-                      <option value="manual">Manual</option>
-                      <option value="linkedin">LinkedIn</option>
-                      <option value="upwork">Upwork</option>
-                      <option value="remoteok">Remote OK</option>
-                    </select>
-                  </label>
-                  <label>
-                    Work mode
-                    <select name="work_mode" defaultValue="unknown">
-                      <option value="unknown">Not specified</option>
-                      <option value="remote">Remote</option>
-                      <option value="on_site">On-site</option>
-                      <option value="hybrid">Hybrid</option>
-                    </select>
-                  </label>
-                  <label>
-                    Location
-                    <input
-                      name="location"
-                      placeholder="e.g. Lagos or Remote"
-                      maxLength={300}
-                    />
-                  </label>
-                  <label>
-                    Job listing URL
-                    <input
-                      name="source_url"
-                      type="url"
-                      placeholder="https://..."
-                    />
-                  </label>
-                  <label className="description-field">
-                    Job description
-                    <textarea
-                      name="description"
-                      placeholder="Paste the job description here…"
-                      required
-                      maxLength={50000}
-                      rows={5}
-                    />
-                  </label>
-                  <div className="form-actions">
-                    <span>Required: job description</span>
-                    <button
-                      className="primary-button"
-                      type="submit"
-                      disabled={submitting}
-                    >
-                      {submitting ? (
-                        <>
-                          <span className="button-spinner" />
-                          Adding…
-                        </>
-                      ) : (
-                        "Add job"
-                      )}
-                    </button>
-                  </div>
-                </form>
-              </section>
-            )}
+              </form>
+            </section>
+          )}
 
           {pageError && (
             <div className="message-banner error-banner" role="alert">
@@ -1698,14 +1880,6 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
                   />
                 </label>
               </div>
-
-              {!loading && visibleJobs.length > 0 && (
-                <div className="jobs-list-heading" aria-hidden="true">
-                  <span />
-                  <span>Opportunity</span>
-                  <span>Added · status</span>
-                </div>
-              )}
 
               <div className="jobs-list">
                 {loading ? (
@@ -2021,6 +2195,58 @@ export default function DashboardClient({ page }: { page: DashboardPage }) {
           </footer>
         </div>
       </section>
+      <Dialog open={searchDialogOpen} onOpenChange={setSearchDialogOpen}>
+        <DialogContent
+          className="search-command-dialog"
+          overlayClassName="bg-black/20 backdrop-blur-[3px]"
+          showCloseButton={false}
+        >
+          <DialogTitle className="sr-only">Search your jobs</DialogTitle>
+          <label className="search-command-field">
+            <Search size={18} aria-hidden="true" />
+            <span className="sr-only">Search jobs</span>
+            <input
+              autoFocus
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search"
+            />
+            <kbd>Esc</kbd>
+          </label>
+          {search.trim() && (
+            <div className="search-command-results" aria-live="polite">
+              {searchDialogResults.length === 0 ? (
+                <p className="search-command-empty">No matching jobs found.</p>
+              ) : (
+                searchDialogResults.map((job) => (
+                  <button
+                    className="search-command-result"
+                    key={job.id}
+                    type="button"
+                    onClick={() => {
+                      setFilter("all");
+                      setSearch(job.title || job.company || search);
+                      setSearchDialogOpen(false);
+                      if (activePage !== "home") router.push("/");
+                    }}
+                  >
+                    <span className="search-command-result-copy">
+                      <strong>{job.title || "Untitled role"}</strong>
+                      <span>
+                        {job.company || "Company not specified"}
+                        {job.location ? ` · ${job.location}` : ""}
+                      </span>
+                    </span>
+                    <span className="search-command-result-status">
+                      {statusLabels[job.status]}
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

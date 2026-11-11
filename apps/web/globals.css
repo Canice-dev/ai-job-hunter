@@ -2053,7 +2053,7 @@ h1 { margin-bottom: 7px; color: #202020; font-size: clamp(25px, 2.5vw, 31px); fo
 .stat-card, .stat-total { min-height: 97px; padding: 13px 16px; border: 0; border-right: 1px solid #e9e9e9; border-radius: 0; background: #fff; box-shadow: none; }
 .stat-card:last-child { border-right: 0; }
 .stat-top { color: #727272; font-size: 11px; font-weight: 450; }
-.stat-icon { width: 25px; height: 25px; border-radius: 6px; background: transparent !important; color: #777 !important; }
+.stat-icon { width: 28px; height: 28px; border-radius: 0; background: transparent !important; color: #111 !important; }
 .stat-card strong { margin: 11px 0 3px; color: #242424; font-size: 24px; font-weight: 500; }
 .stat-card small { color: #898989; font-size: 10px; }
 .form-panel { margin: 0 0 22px; padding: 18px; border-color: #e8e8e8; border-radius: 8px; box-shadow: none; }
@@ -2069,7 +2069,7 @@ h1 { margin-bottom: 7px; color: #202020; font-size: clamp(25px, 2.5vw, 31px); fo
 .refresh-button { min-height: 31px; gap: 7px; border-color: #e3e3e3; border-radius: 6px; color: #555; font-size: 11px; }
 .refresh-button:hover { background: #f8f8f8; color: #222; }
 .refresh-glyph { color: #656565; }
-.jobs-toolbar { gap: 12px; margin-bottom: 0; padding: 0 0 10px; border-bottom: 1px solid #e9e9e9; }
+.jobs-toolbar { gap: 12px; margin-bottom: 0; padding: 0 0 10px; border-bottom: 0; }
 .filter-tabs { gap: 3px; }
 .filter-tab { min-height: 29px; padding: 0 10px; border-radius: 6px; color: #777; font-size: 11px; font-weight: 450; }
 .filter-tab:hover { background: #f6f6f6; color: #252525; }
@@ -2188,7 +2188,21 @@ h1 { margin-bottom: 7px; color: #202020; font-size: clamp(25px, 2.5vw, 31px); fo
 }
 .sidebar-search:hover { background: #fff; }
 .sidebar-search span { flex: 1; }
-.sidebar-search kbd { padding: 2px 5px; border: 1px solid #e0e1e6; border-radius: 4px; background: #fff; color: #777; font: inherit; font-size: 10px; }
+.sidebar-search kbd { padding: 2px 5px; border: 1px solid #e0e1e6; border-radius: 4px; background: #fff; color: #777; font: inherit; }
+.search-command-dialog { top: 30%; display: flex; width: min(640px, calc(100% - 32px)); max-width: none; max-height: min(620px, calc(100vh - 32px)); flex-direction: column; gap: 0; padding: 8px; border: 1px solid #e1e2e7; border-radius: 12px; background: #fff; box-shadow: 0 18px 55px rgb(20 20 20 / 24%); }
+.search-command-field { display: flex; min-height: 54px; align-items: center; gap: 11px; padding: 0 6px; border: 0; border-radius: 8px; color: #626675; }
+.search-command-field input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: #252731; font: inherit; font-size: 17px; }
+.search-command-field input::placeholder { color: #626675; opacity: 1; }
+.search-command-field kbd { padding: 5px 8px; border: 1px solid #e0e1e6; border-radius: 5px; background: #fff; color: #626675; font: inherit; font-size: 10px; white-space: nowrap; }
+.search-command-results { max-height: 330px; overflow-y: auto; border-top: 1px solid #ececf0; }
+.search-command-empty { margin: 0; padding: 14px 10px; color: #777b88; font-size: 13px; text-align: center; }
+.search-command-result { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 12px; padding: 10px; border: 0; border-radius: 7px; background: transparent; color: #292b34; text-align: left; cursor: pointer; }
+.search-command-result:hover, .search-command-result:focus-visible { background: #f2f2f5; outline: none; }
+.search-command-result-copy { display: grid; min-width: 0; gap: 3px; }
+.search-command-result-copy strong, .search-command-result-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.search-command-result-copy strong { font-size: 13px; font-weight: 550; }
+.search-command-result-copy span, .search-command-result-status { color: #777b88; font-size: 11px; }
+.search-command-result-status { flex: 0 0 auto; }
 .sidebar-label, .sidebar-section-label { margin: 17px 9px 7px; color: #343640; font-size: 12px; font-weight: 500; }
 .side-nav { gap: 2px; }
 .nav-item { min-height: 35px; border: 1px solid transparent; color: #666978; }
@@ -2221,6 +2235,7 @@ h1 { margin-bottom: 7px; color: #202020; font-size: clamp(25px, 2.5vw, 31px); fo
   .app-shell.sidebar-collapsed { grid-template-columns: 0 minmax(0, 1fr); }
 }
 @media (max-width: 740px) {
+  .jobs-toolbar { padding-bottom: 0; }
   .sidebar { visibility: visible; }
   .app-shell.sidebar-collapsed { display: block; }
   .sidebar-collapsed .sidebar { visibility: hidden; width: 0; padding: 0; }
