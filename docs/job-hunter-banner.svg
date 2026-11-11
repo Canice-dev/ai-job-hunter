@@ -1,0 +1,64 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="380" viewBox="0 0 1200 380" fill="none">
+  <defs>
+    <linearGradient id="background" x1="18" y1="18" x2="1182" y2="362" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#101A32"/>
+      <stop offset="1" stop-color="#202D53"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#65E3CF"/>
+      <stop offset="1" stop-color="#7BA7FF"/>
+    </linearGradient>
+    <filter id="shadow" x="690" y="64" width="470" height="280" color-interpolation-filters="sRGB" filterUnits="userSpaceOnUse">
+      <feFlood flood-opacity="0" result="BackgroundImageFix"/>
+      <feColorMatrix in="SourceAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha"/>
+      <feOffset dy="12"/>
+      <feGaussianBlur stdDeviation="12"/>
+      <feComposite in2="hardAlpha" operator="out"/>
+      <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0"/>
+      <feBlend in2="BackgroundImageFix" result="effect1_dropShadow"/>
+      <feBlend in="SourceGraphic" in2="effect1_dropShadow" result="shape"/>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="380" rx="28" fill="url(#background)"/>
+  <circle cx="1060" cy="-10" r="210" fill="#506AD8" fill-opacity=".12"/>
+  <circle cx="1110" cy="324" r="180" fill="#65E3CF" fill-opacity=".08"/>
+  <path d="M0 320C202 258 285 389 491 328s259-130 455-79 171 30 254-11v142H0V320Z" fill="#111B34" fill-opacity=".45"/>
+
+  <g transform="translate(76 73)">
+    <rect width="50" height="50" rx="15" fill="url(#accent)"/>
+    <path d="M17 19h16v17H17z" stroke="#10213A" stroke-width="2.5" stroke-linejoin="round"/>
+    <path d="M21 19v-3a4 4 0 0 1 8 0v3M17 25h16M24 25v4" stroke="#10213A" stroke-width="2.5" stroke-linecap="round"/>
+    <text x="68" y="34" fill="#A8B6D2" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700" letter-spacing="3.2">YOUR JOB SEARCH, IN ONE PLACE</text>
+  </g>
+
+  <text x="76" y="190" fill="#F7FAFF" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="58" font-weight="750" letter-spacing="-2">Find your next</text>
+  <text x="76" y="252" fill="url(#accent)" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="58" font-weight="750" letter-spacing="-2">great role.</text>
+  <text x="80" y="294" fill="#B9C5DA" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="17">Discover jobs. See your fit. Prepare with confidence.</text>
+
+  <g filter="url(#shadow)">
+    <rect x="744" y="83" width="365" height="232" rx="18" fill="#F8FAFD"/>
+    <rect x="744" y="83" width="365" height="43" rx="18" fill="#FFFFFF"/>
+    <path d="M744 108h365" stroke="#E6EBF2"/>
+    <circle cx="766" cy="104" r="4" fill="#F28C85"/>
+    <circle cx="781" cy="104" r="4" fill="#F4C66A"/>
+    <circle cx="796" cy="104" r="4" fill="#72CDAE"/>
+    <rect x="833" y="96" width="178" height="16" rx="8" fill="#F0F3F8"/>
+
+    <text x="771" y="153" fill="#25324A" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="13" font-weight="700">YOUR NEXT STEPS</text>
+    <rect x="771" y="166" width="311" height="48" rx="11" fill="#FFFFFF" stroke="#E7ECF3"/>
+    <circle cx="795" cy="190" r="12" fill="#DFF8F2"/>
+    <path d="m790 190 3 3 6-7" stroke="#168E7B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    <text x="817" y="187" fill="#26334A" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="650">Review a new opportunity</text>
+    <text x="817" y="202" fill="#7E8AA0" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="10">Check the role, source, and fit</text>
+    <rect x="771" y="222" width="311" height="48" rx="11" fill="#FFFFFF" stroke="#E7ECF3"/>
+    <circle cx="795" cy="246" r="12" fill="#E9EEFF"/>
+    <path d="M790 247h10M795 242v10" stroke="#526FD2" stroke-width="1.8" stroke-linecap="round"/>
+    <text x="817" y="243" fill="#26334A" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="12" font-weight="650">Prepare your application</text>
+    <text x="817" y="258" fill="#7E8AA0" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="10">Tailored CV and cover letter</text>
+    <rect x="771" y="282" width="95" height="19" rx="9.5" fill="#E8F8F5"/>
+    <text x="786" y="295" fill="#168E7B" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="9" font-weight="700">STAY ON TRACK</text>
+  </g>
+
+  <text x="76" y="348" fill="#8191B0" font-family="Inter,Segoe UI,Arial,sans-serif" font-size="11" font-weight="600" letter-spacing="1.4">JOB HUNTER  •  WEB + TELEGRAM</text>
+</svg>
