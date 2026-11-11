@@ -261,7 +261,7 @@ class TelegramBot:
             f"Asking NVIDIA AI to search Tavily for {search_target} in Abuja, Lagos, Port Harcourt, Enugu, and Benue State…",
         )
         try:
-            listings, total = search_site_jobs(query)
+            listings, total, no_match_reason = search_site_jobs(query)
         except SiteSearchError as exc:
             session.add(
                 SearchRun(
@@ -284,6 +284,7 @@ class TelegramBot:
                     source="web",
                     source_url=listing.url,
                     title=listing.title,
+                    company=listing.company,
                     location=listing.location,
                     work_mode="on_site",
                     description=listing.description,
@@ -336,8 +337,9 @@ class TelegramBot:
             search_label = f" for '{query}'" if query else " for general IT jobs"
             self.send(
                 chat_id,
-                "No dated on-site listings matched"
-                f"{search_label} in the last {SITE_LOOKBACK_DAYS} days. Try different keywords later.",
+                "No verified on-site IT job listings matched"
+                f"{search_label} in the last {SITE_LOOKBACK_DAYS} days. "
+                f"{no_match_reason or 'Try different keywords later.'}",
             )
             return
 
